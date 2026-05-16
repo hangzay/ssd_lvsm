@@ -93,16 +93,7 @@ The main architecture figure is included above. Additional qualitative inference
 
 ## Citation and Acknowledgements
 
-If this code is useful for your work, please cite the Semantic-Spatial Decoupled NVS paper. The release uses DINOv3 ViT-B/16 as the frozen iREPA teacher and follows the DINOv3 license for the bundled helper code under `dinov3/`. The spatial correspondence objective is inspired by CAMEO:
-
-```bibtex
-@article{kwon2025cameo,
-  title={CAMEO: Correspondence-Attention Alignment for Multi-View Diffusion Models},
-  author={Kwon, Minkyung and Choi, Jinhyeok and Park, Jiho and Jeon, Seonghu and Jang, Jinhyuk and Seo, Junyoung and Kwak, Min-Seop and Kim, Jin-Hwa and Kim, Seungryong},
-  journal={arXiv preprint arXiv:2512.03045},
-  year={2025}
-}
-```
+If this code is useful for your work, please cite the Semantic-Spatial Decoupled NVS paper. The release uses DINOv3 ViT-B/16 as the frozen iREPA teacher and follows the DINOv3 license for the bundled helper code under `dinov3/`.
 
 ## License
 
