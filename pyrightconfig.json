@@ -1,0 +1,8 @@
+{
+    "exclude": [
+      "experiments/**",
+      "log/**",
+      "metric_checkpoint/**",
+      "preprocessed_data/**"    ],
+    "typeCheckingMode": "off"
+}
