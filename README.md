@@ -11,107 +11,42 @@
   <a href="LICENSE.md"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-4c6f91"></a>
 </p>
 
-<p><strong>Yihang Wu<sup>1*</sup>, Yihang Sun<sup>2*</sup>, Shaofeng Zhang<sup>3</sup>, Zuxuan Wu<sup>1</sup>, Junchi Yan<sup>2</sup>, Xiaosong Jia<sup>1&dagger;</sup></strong></p>
+<p><strong>Yihang Wu<sup>1,2*</sup>, Yihang Sun<sup>3*</sup>, Shaofeng Zhang<sup>4</sup>, Zuxuan Wu<sup>1,2</sup>, Junchi Yan<sup>3&#9993;</sup>, Xiaosong Jia<sup>1,2&#9993;</sup>, Yu-gang Jiang<sup>1,2</sup></strong></p>
 <p>
   <sup>1</sup> Institute of Trustworthy Embodied Artificial Intelligence (TEAI), Fudan University<br>
-  <sup>2</sup> Sch. of Computer Science &amp; Sch. of Artificial Intelligence, Shanghai Jiao Tong University<br>
-  <sup>3</sup> School of Information and Software Engineering, University of Science and Technology of China
+  <sup>2</sup> Shanghai Key Laboratory of Multimodal Embodied AI<br>
+  <sup>3</sup> Sch. of Artificial Intelligence &amp; Sch. of Computer Science, Shanghai Jiao Tong University<br>
+  <sup>4</sup> University of Science and Technology of China
 </p>
-<p>* Equal contribution. &dagger; Corresponding author.</p>
+<p>* Equal Contributions. &#9993; Correspondence Author.</p>
 
 Contact: [yh048172@gmail.com](mailto:yh048172@gmail.com)
 
 </div>
 
-## 🌐 Overview
+## Overview
 
-Feedforward novel view synthesis transformers often combine RGB appearance tokens and Plucker-ray geometry tokens in one representation stream. This creates representation ambiguity: semantic appearance and camera-space geometry compete inside the same latent features.
+Feedforward novel view synthesis transformers commonly mix RGB appearance tokens and Plucker-ray geometry tokens in a shared latent stream. This coupling can make camera-space structure interfere with appearance representation.
 
-Semantic-Spatial Decoupling keeps appearance and geometry as coordinated but distinct branches. RGB patch tokens form the semantic branch, Plucker-ray patch tokens form the spatial branch, shared Q/K attention preserves routing, and branch-specific values preserve heterogeneous feature updates.
+Semantic-Spatial Decoupling keeps the two information types in coordinated but separate branches. RGB patch tokens form the semantic branch, Plucker-ray patch tokens form the spatial branch, shared Q/K attention preserves routing, and branch-specific values preserve heterogeneous feature updates.
 
 <p align="center">
   <img src="docs/assets/intro.png" alt="Semantic-Spatial Decoupling teaser" width="92%">
 </p>
 
-The teaser summarizes the central observation: geometry-heavy Plucker features and appearance-heavy RGB features benefit from different update paths, even when they should still exchange information through attention.
+The released code includes decoder-only and encoder-decoder variants, branch-specific training supervision, optional bidirectional modulation, RealEstate10K and Objaverse training entry points, and evaluation scripts.
 
-## 🔍 Problem Evidence
+## Controlled Results
 
-<p align="center">
-  <img src="docs/assets/plucker.png" alt="Plucker representation evidence" width="88%">
-</p>
+These are controlled reimplementation results under matched data splits, view sampling, 256x256 resolution, 50K training steps, and fixed training budgets. They are intended to isolate the effect of semantic-spatial decoupling, not to compare against official large-scale LVSM checkpoints.
 
-Plucker-ray representations develop grid-like spatial structure across layers. This is direct evidence that geometry can dominate the shared latent space when camera rays and RGB appearance are entangled in a single stream.
+| Architecture | Dataset | Baseline PSNR | Ours PSNR | Baseline LPIPS | Ours LPIPS |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Decoder-only | RE10K | 26.10 | **27.21** | 0.144 | **0.125** |
+| Decoder-only | Objaverse | 23.75 | **26.46** | 0.150 | **0.101** |
+| Encoder-decoder | RE10K | 24.06 | **25.31** | 0.206 | **0.154** |
 
-## 🧩 Method Overview
-
-<p align="center">
-  <img src="docs/assets/model.png" alt="Semantic-Spatial Decoupling model overview" width="92%">
-</p>
-
-The model separates semantic and spatial tokens while keeping them synchronized through attention. Independent-V attention shares query-key routing between branches but applies branch-specific value projections, so semantic and spatial features can evolve without collapsing into one mixed representation.
-
-The full configuration adds branch-specific training supervision and lightweight bidirectional modulation. DINOv3/iREPA supervision targets the semantic branch, DA3-derived geometric consistency targets the spatial branch, and modulation lets the branches condition each other without merging their latent states.
-
-## 🧠 Feature Analysis
-
-<p align="center">
-  <img src="docs/assets/full-vis.png" alt="Layer-wise semantic and spatial branch visualization" width="92%">
-</p>
-
-Layer-wise visualizations show the semantic and spatial branches taking on different roles as depth increases. The semantic branch tracks appearance structure, while the spatial branch keeps geometry and camera-dependent patterns explicit.
-
-## 📊 Controlled Reimplementation Results
-
-The following numbers are **controlled reimplementation results**, not direct comparisons against official large-scale LVSM checkpoints. Within each benchmark, the baseline and decoupled variants use the same codebase, data split, view sampling protocol, 256x256 resolution, 50K-step schedule, and training budget. These tables are intended to isolate the effect of semantic-spatial decoupling under a fixed budget.
-
-**Training configuration for the main table**
-
-| Benchmark | Backbone | Views | Resolution | GPUs | Steps | Time |
-| --- | --- | --- | --- | --- | --- | --- |
-| RE10K decoder-only | 12-layer decoder-only, hidden dim 768 | 2 input / 6 target | 256x256 | 4x A100 80G | 50K | about 8 h / 32 GPU-hours |
-| Objaverse decoder-only | 12-layer decoder-only, hidden dim 768 | 4 input / 8 target | 256x256 | 8x A100 80G | 50K | about 15 h / 120 GPU-hours |
-| RE10K encoder-decoder | 12-layer encoder + 12-layer decoder, hidden dim 768 | 2 input / 6 target | 256x256 | 4x A100 80G | 50K | about 12 h / 48 GPU-hours |
-
-| Architecture | Dataset | Model | PSNR up | SSIM up | LPIPS down |
-| --- | --- | --- | ---: | ---: | ---: |
-| Decoder-only | RE10K | Baseline | 26.10 | 0.839 | 0.144 |
-| Decoder-only | RE10K | Ours (full) | **27.21** | **0.869** | **0.125** |
-| Decoder-only | Objaverse | Baseline | 23.75 | 0.864 | 0.150 |
-| Decoder-only | Objaverse | Ours (full) | **26.46** | **0.899** | **0.101** |
-| Encoder-decoder | RE10K | Baseline | 24.06 | 0.775 | 0.206 |
-| Encoder-decoder | RE10K | Ours (full) | **25.31** | **0.806** | **0.154** |
-
-**Fixed-budget RE10K decoder-only component control**
-
-This table uses the RE10K decoder-only training configuration above: 12 decoder layers, 2 input / 6 target views, 256x256 resolution, 4x A100 80G, 50K training steps, about 8 wall-clock hours.
-
-| Configuration | PSNR up | SSIM up | LPIPS down |
-| --- | ---: | ---: | ---: |
-| Decoupled base | 26.70 | 0.851 | 0.138 |
-| Decoupled + supervision | 26.91 | 0.857 | 0.134 |
-| Decoupled + modulation | 27.06 | 0.860 | 0.131 |
-| Decoupled full | **27.21** | **0.869** | **0.125** |
-
-## 🖼️ Qualitative Results
-
-<p align="center">
-  <img src="docs/assets/infer.png" alt="Novel view synthesis qualitative result" width="92%">
-</p>
-
-The qualitative comparison highlights sharper synthesized structure and cleaner target-view consistency under the same controlled training budget.
-
-<p align="center">
-  <img src="docs/assets/compare.png" alt="Controlled qualitative comparison" width="88%">
-</p>
-
-The representative comparison shows where the decoupled design reduces artifacts caused by mixing spatial bias into appearance features.
-
-## ⚙️ Why Low Overhead
-
-The base decoupled design preserves the original token width and keeps shared Q/K attention routing, so the inference path remains close to the entangled decoder-only backbone. The full model adds lightweight bidirectional modulation, while the DINOv3 teacher, iREPA projector, DA3 supervision cache, and branch-specific losses are training-only modules removed at inference.
-
-## 🛠️ Preparation
+## Installation
 
 Create the environment and install dependencies from the project root:
 
@@ -123,7 +58,7 @@ pip install -r requirements.txt
 
 The code expects CUDA, distributed `torchrun`, and `xformers` memory-efficient attention. Prepare `configs/api_keys.yaml` from `configs/api_keys_example.yaml` before WandB logging. DINOv3 teacher weights are loaded from the local Hugging Face cache first and downloaded automatically when missing; gated model access must be approved before the first run.
 
-## 📦 Data
+## Data
 
 Preprocess RealEstate10K-style raw `.torch` files with:
 
@@ -141,7 +76,7 @@ Spatial supervision expects a DA3 cache per scene or object under `training.da3_
 <da3_cache_root>/<scene_id>/camera_intrinsics.zarr
 ```
 
-## 🚀 Training
+## Training
 
 The released experiment families are:
 
@@ -176,7 +111,7 @@ bash scripts/train_re10k_encoder_decoder.sh
 bash scripts/train_objaverse_decoder.sh
 ```
 
-## 🧪 Evaluation
+## Evaluation
 
 Evaluate a RealEstate10K decoder-only checkpoint with:
 
