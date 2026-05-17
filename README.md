@@ -6,12 +6,12 @@
 
 <p>
   <img alt="arXiv" src="https://img.shields.io/badge/arXiv-coming%20soon-b31b1b">
-  <a href="https://hangzay.github.io/ssd_lvsm/"><img alt="Project Page" src="https://img.shields.io/badge/Project%20Page-website-245fa8"></a>
+  <a href="https://hangzay.github.io/ssd_lvsm/"><img alt="Project" src="https://img.shields.io/badge/Project%20Page-website-245fa8"></a>
   <a href="https://github.com/hangzay/ssd_lvsm"><img alt="Code" src="https://img.shields.io/badge/Code-GitHub-181717?logo=github"></a>
   <a href="LICENSE.md"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-4c6f91"></a>
 </p>
 
-<p><strong>Yihang Wu*¹, Yihang Sun*², Shaofeng Zhang³, Zuxuan Wu¹, Junchi Yan², Xiaosong Jia†¹</strong></p>
+<p><strong>Yihang Wu¹*, Yihang Sun²*, Shaofeng Zhang³, Zuxuan Wu¹, Junchi Yan², Xiaosong Jia¹†</strong></p>
 <p>
   ¹ Institute of Trustworthy Embodied Artificial Intelligence (TEAI), Fudan University<br>
   ² Sch. of Computer Science &amp; Sch. of Artificial Intelligence, Shanghai Jiao Tong University<br>
