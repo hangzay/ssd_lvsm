@@ -8,6 +8,7 @@
       name="description"
       content="Semantic-Spatial Decoupling in feedforward novel view synthesis transformers."
     >
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="style.css">
   </head>
   <body>
@@ -15,11 +16,10 @@
       <a class="brand" href="#top">Semantic-Spatial Decoupling</a>
       <nav>
         <a href="#abstract">Abstract</a>
-        <a href="#evidence">Evidence</a>
         <a href="#method">Method</a>
-        <a href="#analysis">Analysis</a>
         <a href="#results">Results</a>
-        <a href="#usage">Usage</a>
+        <a href="#demo">Demo</a>
+        <a href="#visuals">Visuals</a>
       </nav>
     </header>
 
@@ -31,18 +31,19 @@
             Resolving Representation Ambiguity in Feedforward Novel View Synthesis Transformer via Semantic-Spatial Decoupling
           </h1>
           <p class="subtitle">
-            A method for separating RGB semantic tokens from Plucker-ray spatial tokens while preserving shared attention routing.
+            A semantic-spatial branch design for reducing representation ambiguity between RGB appearance and Plucker-ray geometry.
           </p>
           <div class="author-block" aria-label="Authors and affiliations">
             <p class="author-list">
-              Yihang Wu<sup>1*</sup>, Yihang Sun<sup>2*</sup>, Shaofeng Zhang<sup>3</sup>, Zuxuan Wu<sup>1</sup>, Junchi Yan<sup>2</sup>, Xiaosong Jia<sup>1&dagger;</sup>
+              Yihang Wu<sup>1,2*</sup>, Yihang Sun<sup>3*</sup>, Shaofeng Zhang<sup>4</sup>, Zuxuan Wu<sup>1,2</sup>, Junchi Yan<sup>3&#9993;</sup>, Xiaosong Jia<sup>1,2&#9993;</sup>, Yu-gang Jiang<sup>1,2</sup>
             </p>
             <p class="affiliation-list">
               <sup>1</sup> Institute of Trustworthy Embodied Artificial Intelligence (TEAI), Fudan University<br>
-              <sup>2</sup> Sch. of Computer Science &amp; Sch. of Artificial Intelligence, Shanghai Jiao Tong University<br>
-              <sup>3</sup> School of Information and Software Engineering, University of Science and Technology of China
+              <sup>2</sup> Shanghai Key Laboratory of Multimodal Embodied AI<br>
+              <sup>3</sup> Sch. of Artificial Intelligence &amp; Sch. of Computer Science, Shanghai Jiao Tong University<br>
+              <sup>4</sup> University of Science and Technology of China
             </p>
-            <p class="contribution-note">* Equal contribution. &dagger; Corresponding author.</p>
+            <p class="contribution-note">* Equal Contributions. &#9993; Correspondence Author.</p>
           </div>
           <div class="hero-actions" aria-label="Project links">
             <button class="action secondary" type="button" disabled>Paper</button>
@@ -52,114 +53,60 @@
         </div>
       </section>
 
-      <section class="teaser-section" aria-label="Teaser figure">
-        <figure class="figure bare teaser">
-          <img src="assets/intro.png" alt="Semantic-Spatial Decoupling teaser">
-          <figcaption>
-            Semantic-Spatial Decoupling treats RGB appearance and Plucker-ray geometry as coordinated but distinct representation streams.
-          </figcaption>
-        </figure>
-      </section>
-
       <section id="abstract" class="section narrow">
         <p class="section-kicker">Abstract</p>
         <h2>Decoupling appearance and geometry</h2>
         <p>
-          Transformer-based feedforward novel view synthesis models commonly concatenate RGB appearance tokens and
-          Plucker-ray geometry tokens into one latent feature space. This coupling can make geometry leak into
-          semantic appearance features and create ambiguous representations. Semantic-Spatial Decoupling keeps
-          the two streams explicit: RGB patch tokens form a semantic branch, Plucker-ray patch tokens form a
-          spatial branch, and Independent-V attention shares Q/K routing while preserving branch-specific value
-          updates. Branch-specific training supervision and lightweight modulation can be added without changing
-          the compact inference path.
+          Existing feedforward NVS transformers often project RGB patches and Plucker rays into one latent stream,
+          which can mix appearance semantics with camera-space geometry. Our design keeps semantic and spatial
+          tokens explicit, shares Q/K attention routing for coordination, and uses branch-specific value updates
+          so each branch can evolve without collapsing into a single ambiguous representation.
         </p>
-      </section>
-
-      <section id="evidence" class="section">
-        <div class="section-heading">
-          <p class="section-kicker">Problem Evidence</p>
-          <h2>Plucker features expose spatial bias</h2>
-          <p>
-            Plucker representations evolve into grid-like layer patterns, showing that camera-space structure
-            remains strong inside the learned features. When this spatial signal shares a single stream with RGB
-            appearance, the model risks mixing geometry and semantics in ways that are hard for rendering heads
-            to untangle.
-          </p>
-        </div>
-        <figure class="figure">
-          <img src="assets/plucker.png" alt="Layer-wise Plucker representation visualization">
-          <figcaption>
-            Layer-wise Plucker evidence: spatial structure is visible directly in the representation, motivating
-            separate spatial updates instead of a fully entangled stream.
-          </figcaption>
-        </figure>
       </section>
 
       <section id="method" class="section muted">
         <div class="section-heading">
-          <p class="section-kicker">Method Overview</p>
+          <p class="section-kicker">Method</p>
           <h2>Separate branches, shared routing</h2>
           <p>
-            The architecture decouples semantic and spatial value updates while retaining shared attention
-            routing. This keeps the branches aligned without forcing them into the same latent state.
+            The architecture preserves the compact feedforward inference path while giving appearance and geometry
+            separate feature-update channels. Training-only supervision and lightweight modulation can be enabled
+            for the full variant without changing the core decoupled token interface.
           </p>
         </div>
         <div class="method-layout">
           <figure class="figure">
             <img src="assets/model.png" alt="Semantic-Spatial Decoupling architecture diagram">
             <figcaption>
-              RGB patches and Plucker rays enter separate branches. Independent-V attention shares Q/K routing
-              and applies branch-specific value projections.
+              RGB patches and Plucker rays enter separate branches. Independent-V attention shares Q/K routing and
+              applies branch-specific value projections.
             </figcaption>
           </figure>
           <div class="method-cards" aria-label="Method components">
             <article>
               <h3>Semantic branch</h3>
-              <p>Appearance tokens can receive DINOv3/iREPA supervision during training.</p>
+              <p>Preserves appearance structure and can receive DINOv3/iREPA supervision during training.</p>
             </article>
             <article>
               <h3>Spatial branch</h3>
-              <p>Geometry tokens can receive DA3-derived spatial consistency supervision.</p>
+              <p>Maintains camera-dependent geometric patterns and can receive DA3-derived consistency signals.</p>
             </article>
             <article>
-              <h3>Independent-V attention</h3>
-              <p>Shared Q/K attention preserves coordinated routing; independent values preserve branch identity.</p>
-            </article>
-            <article>
-              <h3>Structural low overhead</h3>
-              <p>The base design keeps token width fixed, and training-only teachers are removed at inference.</p>
+              <h3>Low-overhead base</h3>
+              <p>The base decoupled design keeps token width fixed and stays close to the original inference path.</p>
             </article>
           </div>
         </div>
       </section>
 
-      <section id="analysis" class="section">
-        <div class="section-heading">
-          <p class="section-kicker">Feature Analysis</p>
-          <h2>Branch roles evolve across layers</h2>
-          <p>
-            Multi-layer visualizations show the semantic and spatial branches taking different roles as depth
-            increases. The semantic branch tracks appearance structure, while the spatial branch keeps
-            camera-dependent geometry explicit.
-          </p>
-        </div>
-        <figure class="figure">
-          <img src="assets/full-vis.png" alt="Layer-wise semantic and spatial branch visualization">
-          <figcaption>
-            Feature analysis across layers: semantic and spatial features remain coordinated but do not collapse
-            into the same representation.
-          </figcaption>
-        </figure>
-      </section>
-
-      <section id="results" class="section muted">
+      <section id="results" class="section">
         <div class="section-heading">
           <p class="section-kicker">Controlled Results</p>
           <h2>Fixed-budget comparisons</h2>
           <p>
-            These tables report controlled reimplementation results. Baselines and decoupled variants use the
-            same codebase, data split, view sampling, 256x256 resolution, 50K-step schedule, and training budget.
-            They should not be read as direct comparisons to official large-scale LVSM checkpoints.
+            Baselines and decoupled variants use the same codebase, data split, view sampling, 256x256 resolution,
+            50K-step schedule, and training budget. The numbers isolate the effect of decoupling under a controlled
+            reimplementation setting.
           </p>
         </div>
 
@@ -228,163 +175,52 @@
             </tbody>
           </table>
         </div>
+      </section>
 
-        <div class="setup-grid" aria-label="Training configurations for main results">
-          <article>
-            <h3>RE10K decoder-only</h3>
-            <p>12 decoder layers, 2 input / 6 target views, 256x256, 4x A100 80G, 50K steps, about 8 h.</p>
-          </article>
-          <article>
-            <h3>Objaverse decoder-only</h3>
-            <p>12 decoder layers, 4 input / 8 target views, 256x256, 8x A100 80G, 50K steps, about 15 h.</p>
-          </article>
-          <article>
-            <h3>RE10K encoder-decoder</h3>
-            <p>12 encoder + 12 decoder layers, 2 input / 6 target views, 256x256, 4x A100 80G, 50K steps, about 12 h.</p>
-          </article>
+      <section id="demo" class="section muted">
+        <div class="section-heading">
+          <p class="section-kicker">Demo Page Template</p>
+          <h2>Video-ready result viewer</h2>
+          <p>
+            This section adapts the uploaded demo-page template into the project site as a compact video viewer.
+            It is ready for rendered result clips; missing media paths are shown as placeholders until the files are added.
+          </p>
         </div>
-
-        <div class="table-wrap" role="region" aria-label="RE10K decoder-only component control" tabindex="0">
-          <table>
-            <caption>Fixed-budget RE10K decoder-only component control</caption>
-            <thead>
-              <tr>
-                <th>Configuration</th>
-                <th>PSNR up</th>
-                <th>SSIM up</th>
-                <th>LPIPS down</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Decoupled base</td>
-                <td>26.70</td>
-                <td>0.851</td>
-                <td>0.138</td>
-              </tr>
-              <tr>
-                <td>Decoupled + supervision</td>
-                <td>26.91</td>
-                <td>0.857</td>
-                <td>0.134</td>
-              </tr>
-              <tr>
-                <td>Decoupled + modulation</td>
-                <td>27.06</td>
-                <td>0.860</td>
-                <td>0.131</td>
-              </tr>
-              <tr class="ours">
-                <td>Decoupled full</td>
-                <td>27.21</td>
-                <td>0.869</td>
-                <td>0.125</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="demo-layout" aria-label="Video demo viewer">
+          <div class="demo-panel">
+            <div class="demo-controls" id="demoControls" aria-label="Demo video selector"></div>
+            <div class="demo-meta">
+              <p class="demo-title" id="demoTitle">Representation analysis</p>
+              <p id="demoDescription">
+                Add a video showing semantic and spatial branch behavior across views or layers.
+              </p>
+              <p class="asset-hint" id="demoAssetHint">Expected video: assets/demo/representation-analysis.mp4</p>
+            </div>
+          </div>
+          <div class="video-frame" id="demoFrame">
+            <video id="demoVideo" controls muted loop playsinline></video>
+            <div class="video-placeholder" id="demoPlaceholder">
+              Add <code>assets/demo/representation-analysis.mp4</code> to activate this slot.
+            </div>
+          </div>
         </div>
       </section>
 
-      <section id="qualitative" class="section">
+      <section id="visuals" class="section">
         <div class="section-heading">
-          <p class="section-kicker">Qualitative Results</p>
+          <p class="section-kicker">Qualitative Snapshot</p>
           <h2>Representative novel view synthesis outputs</h2>
           <p>
-            The qualitative figures focus on a small set of representative comparisons rather than repeated
-            visualizations with similar explanatory value.
+            The static page keeps one qualitative image as a quick preview. Additional feature maps and comparisons
+            are intentionally left for rendered videos in the demo viewer.
           </p>
         </div>
-        <div class="qual-grid">
-          <figure class="figure">
-            <img src="assets/infer.png" alt="Novel view synthesis qualitative comparison">
-            <figcaption>
-              Novel view synthesis examples show sharper target-view structure under the controlled training budget.
-            </figcaption>
-          </figure>
-          <figure class="figure">
-            <img src="assets/compare.png" alt="Controlled qualitative comparison">
-            <figcaption>
-              Side-by-side comparison highlights reduced feature coupling artifacts in challenging regions.
-            </figcaption>
-          </figure>
-        </div>
-      </section>
-
-      <section id="usage" class="section muted">
-        <div class="section-heading">
-          <p class="section-kicker">Training / Usage</p>
-          <h2>Released configs and entry points</h2>
-          <p>
-            Paths in the configs should be replaced with local dataset, DA3 cache, checkpoint, and output
-            directories before launching jobs.
-          </p>
-        </div>
-        <div class="usage-grid">
-          <article>
-            <h3>Preparation</h3>
-            <pre><code>conda create -n decoupled-nvs python=3.11
-conda activate decoupled-nvs
-pip install -r requirements.txt</code></pre>
-          </article>
-          <article>
-            <h3>Preprocess RE10K-style data</h3>
-            <pre><code>python process_data.py \
-  --base_path path_to_raw_re10k/ \
-  --output_dir path_to_re10k_processed/ \
-  --mode train</code></pre>
-          </article>
-          <article>
-            <h3>Train</h3>
-            <pre><code>bash scripts/train_re10k_decoder_full.sh
-bash scripts/train_re10k_encoder_decoder.sh
-bash scripts/train_objaverse_decoder.sh</code></pre>
-          </article>
-          <article>
-            <h3>Evaluate</h3>
-            <pre><code>bash scripts/eval_re10k_decoder.sh
-bash scripts/eval_re10k_encoder_decoder.sh
-bash scripts/eval_objaverse_decoder.sh</code></pre>
-          </article>
-        </div>
-        <div class="table-wrap" role="region" aria-label="Released model variants and scripts" tabindex="0">
-          <table>
-            <caption>Public configs and launch scripts</caption>
-            <thead>
-              <tr>
-                <th>Model family</th>
-                <th>Config</th>
-                <th>Training script</th>
-                <th>Evaluation script</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>RE10K decoder-only basic</td>
-                <td><code>configs/re10k_decoder_only.yaml</code></td>
-                <td><code>scripts/train_re10k_decoder_basic.sh</code></td>
-                <td><code>scripts/eval_re10k_decoder.sh</code></td>
-              </tr>
-              <tr>
-                <td>RE10K decoder-only full</td>
-                <td><code>configs/re10k_decoder_only.yaml</code></td>
-                <td><code>scripts/train_re10k_decoder_full.sh</code></td>
-                <td><code>scripts/eval_re10k_decoder.sh</code></td>
-              </tr>
-              <tr>
-                <td>RE10K encoder-decoder</td>
-                <td><code>configs/re10k_encoder_decoder.yaml</code></td>
-                <td><code>scripts/train_re10k_encoder_decoder.sh</code></td>
-                <td><code>scripts/eval_re10k_encoder_decoder.sh</code></td>
-              </tr>
-              <tr>
-                <td>Objaverse decoder-only</td>
-                <td><code>configs/objaverse_decoder_only.yaml</code></td>
-                <td><code>scripts/train_objaverse_decoder.sh</code></td>
-                <td><code>scripts/eval_objaverse_decoder.sh</code></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <figure class="figure">
+          <img src="assets/infer.png" alt="Novel view synthesis qualitative comparison">
+          <figcaption>
+            Representative outputs under the controlled training budget.
+          </figcaption>
+        </figure>
       </section>
     </main>
 
@@ -396,5 +232,6 @@ bash scripts/eval_objaverse_decoder.sh</code></pre>
         <a href="https://github.com/hangzay/ssd_lvsm">Code</a>
       </p>
     </footer>
+    <script src="demo.js"></script>
   </body>
 </html>
