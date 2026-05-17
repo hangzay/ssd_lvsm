@@ -130,6 +130,28 @@ h1 {
   line-height: 1.45;
 }
 
+.author-block {
+  max-width: 980px;
+  margin: 0 auto 26px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.author-list {
+  margin-bottom: 8px;
+  color: var(--text);
+  font-weight: 750;
+}
+
+.affiliation-list {
+  margin-bottom: 8px;
+}
+
+.contribution-note {
+  margin-bottom: 0;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;

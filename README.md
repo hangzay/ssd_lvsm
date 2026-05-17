@@ -6,9 +6,18 @@
 
 <p>
   <img alt="arXiv" src="https://img.shields.io/badge/arXiv-coming%20soon-b31b1b">
+  <a href="https://hangzay.github.io/ssd_lvsm/"><img alt="Project Page" src="https://img.shields.io/badge/Project%20Page-website-245fa8"></a>
   <a href="https://github.com/hangzay/ssd_lvsm"><img alt="Code" src="https://img.shields.io/badge/Code-GitHub-181717?logo=github"></a>
-  <a href="LICENSE.md"><img alt="License" src="https://img.shields.io/badge/License-see%20file-4c6f91"></a>
+  <a href="LICENSE.md"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-4c6f91"></a>
 </p>
+
+<p><strong>Yihang Wu*¹, Yihang Sun*², Shaofeng Zhang³, Zuxuan Wu¹, Junchi Yan², Xiaosong Jia†¹</strong></p>
+<p>
+  ¹ Institute of Trustworthy Embodied Artificial Intelligence (TEAI), Fudan University<br>
+  ² Sch. of Computer Science &amp; Sch. of Artificial Intelligence, Shanghai Jiao Tong University<br>
+  ³ School of Information and Software Engineering, University of Science and Technology of China
+</p>
+<p>* Equal contribution. † Corresponding author.</p>
 
 Contact: [yh048172@gmail.com](mailto:yh048172@gmail.com)
 
@@ -183,7 +192,3 @@ bash scripts/eval_objaverse_decoder.sh
 ```
 
 Set `training.checkpoint_dir=path_to_checkpoint_or_dir/` and `inference_out_dir=path_to_eval_output/` as command-line overrides when needed. Evaluation writes images, metrics, and optional HTML pages under `inference_out_dir`.
-
-## 📄 License
-
-See `LICENSE.md` for project, DINOv3, dataset, and third-party utility license notes.
