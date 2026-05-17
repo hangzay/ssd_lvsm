@@ -144,6 +144,11 @@ h1 {
   font-weight: 750;
 }
 
+.author-list sup {
+  font-size: 0.72em;
+  line-height: 0;
+}
+
 .affiliation-list {
   margin-bottom: 8px;
 }

@@ -11,13 +11,13 @@
   <a href="LICENSE.md"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-4c6f91"></a>
 </p>
 
-<p><strong>Yihang Wu¹*, Yihang Sun²*, Shaofeng Zhang³, Zuxuan Wu¹, Junchi Yan², Xiaosong Jia¹†</strong></p>
+<p><strong>Yihang Wu<sup>1*</sup>, Yihang Sun<sup>2*</sup>, Shaofeng Zhang<sup>3</sup>, Zuxuan Wu<sup>1</sup>, Junchi Yan<sup>2</sup>, Xiaosong Jia<sup>1&dagger;</sup></strong></p>
 <p>
-  ¹ Institute of Trustworthy Embodied Artificial Intelligence (TEAI), Fudan University<br>
-  ² Sch. of Computer Science &amp; Sch. of Artificial Intelligence, Shanghai Jiao Tong University<br>
-  ³ School of Information and Software Engineering, University of Science and Technology of China
+  <sup>1</sup> Institute of Trustworthy Embodied Artificial Intelligence (TEAI), Fudan University<br>
+  <sup>2</sup> Sch. of Computer Science &amp; Sch. of Artificial Intelligence, Shanghai Jiao Tong University<br>
+  <sup>3</sup> School of Information and Software Engineering, University of Science and Technology of China
 </p>
-<p>* Equal contribution. † Corresponding author.</p>
+<p>* Equal contribution. &dagger; Corresponding author.</p>
 
 Contact: [yh048172@gmail.com](mailto:yh048172@gmail.com)
 
