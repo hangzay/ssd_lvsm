@@ -58,7 +58,7 @@
           <p class="section-kicker">Generation Process</p>
           <h2>Interactive generation explorer</h2>
           <p>
-            Sparse posed images form the input view set, while target Pl&uuml;cker rays define the spatial query set. The explorer links camera geometry, branch routing, and the rendered trajectory so the feedforward generation process is visible at a glance.
+            Two posed RGB inputs form the semantic source set, while three target Pl&uuml;cker-ray queries define the output views. The explorer links 3D camera geometry, branch routing, and the rendered trajectory so the feedforward generation process is visible at a glance.
           </p>
         </div>
         <div class="generation-explorer" aria-label="Interactive generation explorer">
@@ -69,7 +69,7 @@
             </div>
             <div class="toolbar-stats" aria-label="Demo metadata">
               <span><strong id="demoViewCount">0</strong> input views</span>
-              <span><strong id="demoFrameCount">0</strong> camera samples</span>
+              <span><strong id="demoFrameCount">0</strong> output views</span>
               <span>shared Q/K + independent V</span>
             </div>
           </div>
@@ -78,10 +78,10 @@
             <aside class="camera-panel" aria-label="Spatial camera visualization">
               <div class="panel-heading">
                 <p class="panel-kicker">Scene and camera track</p>
-                <h3>Spatial query path</h3>
+                <h3>3D spatial query path</h3>
               </div>
               <div class="spatial-map">
-                <svg id="cameraMap" viewBox="0 0 640 420" role="img" aria-label="Camera positions and target trajectory"></svg>
+                <svg id="cameraMap" viewBox="0 0 640 460" role="img" aria-label="3D camera positions and target trajectory"></svg>
                 <div class="map-placeholder" id="cameraMapPlaceholder">Camera geometry is drawn from the demo manifest.</div>
               </div>
               <div class="track-controls" aria-label="Track position controls">
@@ -99,7 +99,7 @@
               </div>
               <div class="map-legend" aria-label="Camera legend">
                 <span><i class="legend-dot input-dot"></i>Input cameras</span>
-                <span><i class="legend-dot target-dot"></i>Current target ray</span>
+                <span><i class="legend-dot target-dot"></i>Output cameras</span>
                 <span><i class="legend-line"></i>Interpolated path</span>
               </div>
             </aside>
@@ -108,18 +108,15 @@
               <div class="input-deck">
                 <div class="panel-heading compact">
                   <p class="panel-kicker">Input views</p>
-                  <h3>Sparse input set</h3>
+                  <h3>Two-view input set</h3>
                 </div>
                 <div class="input-view-grid" id="inputViewGrid" aria-label="Input source views"></div>
               </div>
 
               <div class="view-stage">
-                <figure class="target-card">
-                  <div class="media-frame image-frame">
-                    <img id="targetImage" alt="Target view">
-                    <div class="media-placeholder" id="targetPlaceholder">Target view</div>
-                  </div>
-                  <figcaption>Target camera query</figcaption>
+                <figure class="output-card">
+                  <div class="output-view-grid" id="outputViewGrid" aria-label="Generated output views"></div>
+                  <figcaption>Three target queries rendered as novel views.</figcaption>
                 </figure>
                 <figure class="synth-card">
                   <div class="media-frame video-frame">
@@ -132,18 +129,18 @@
 
               <div class="branch-flow" aria-label="Semantic-spatial generation flow">
                 <div class="flow-node semantic-node">
-                  <span>RGB source set</span>
+                  <span>2 RGB inputs</span>
                   <strong>Semantic tokens</strong>
                 </div>
                 <div class="flow-link">shared Q/K routing</div>
                 <div class="flow-node spatial-node">
-                  <span>Target Pl&uuml;cker rays</span>
+                  <span>3 target Pl&uuml;cker rays</span>
                   <strong>Spatial tokens</strong>
                 </div>
                 <div class="flow-link">independent V updates</div>
                 <div class="flow-node output-node">
                   <span>Rendering layer</span>
-                  <strong>Synthesized view</strong>
+                  <strong>3 synthesized views</strong>
                 </div>
               </div>
 

@@ -1,33 +1,35 @@
 {
   "title": "Semantic-spatial generation showcase",
-  "description": "Novel-view trajectory generated from sparse posed source views and target Plucker-ray queries.",
+  "description": "Three novel views generated from two posed RGB inputs and target Plucker-ray queries.",
   "inputViews": [
     {
       "label": "Input 1",
       "src": "",
-      "camera": [-0.82, 0.28, 0.2]
+      "camera": [-0.72, 0.22, 0.18]
     },
     {
       "label": "Input 2",
       "src": "",
-      "camera": [-0.22, 0.18, 0.05]
-    },
-    {
-      "label": "Input 3",
-      "src": "",
-      "camera": [0.42, 0.26, 0.34]
-    },
-    {
-      "label": "Input 4",
-      "src": "",
-      "camera": [0.88, 0.34, 0.7]
+      "camera": [0.72, 0.24, 0.18]
     }
   ],
-  "targetView": {
-    "label": "Target view",
-    "src": "",
-    "camera": [0.16, 0.48, 0.88]
-  },
+  "outputViews": [
+    {
+      "label": "Output 1",
+      "src": "",
+      "camera": [-0.38, 0.3, 0.62]
+    },
+    {
+      "label": "Output 2",
+      "src": "",
+      "camera": [0.02, 0.37, 0.78]
+    },
+    {
+      "label": "Output 3",
+      "src": "",
+      "camera": [0.44, 0.31, 0.62]
+    }
+  ],
   "video": {
     "src": "",
     "poster": ""
@@ -36,11 +38,8 @@
     "src": ""
   },
   "trajectory": [
-    [-0.82, 0.28, 0.2],
-    [-0.56, 0.32, 0.34],
-    [-0.22, 0.36, 0.48],
-    [0.16, 0.48, 0.88],
-    [0.52, 0.4, 0.72],
-    [0.88, 0.34, 0.7]
+    [-0.38, 0.3, 0.62],
+    [0.02, 0.37, 0.78],
+    [0.44, 0.31, 0.62]
   ]
 }

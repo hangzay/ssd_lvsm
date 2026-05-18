@@ -325,7 +325,7 @@ h2 {
 .camera-panel,
 .stage-panel,
 .input-deck,
-.target-card,
+.output-card,
 .synth-card,
 .branch-flow,
 .comparison-strip {
@@ -412,9 +412,16 @@ h2 {
   display: none;
 }
 
+.map-floor {
+  fill: rgba(234, 241, 247, 0.82);
+  stroke: #c8d5df;
+  stroke-width: 1.2;
+}
+
 .map-grid-lines line {
-  stroke: #d8e2eb;
-  stroke-width: 1;
+  stroke: rgba(139, 159, 176, 0.34);
+  stroke-linecap: round;
+  stroke-width: 1.1;
 }
 
 .trajectory-line {
@@ -427,39 +434,82 @@ h2 {
 }
 
 .ray-fan line {
-  stroke: rgba(36, 95, 168, 0.25);
+  stroke: rgba(36, 95, 168, 0.2);
   stroke-linecap: round;
   stroke-width: 2;
 }
 
-.input-camera polygon {
-  fill: #ffffff;
-  stroke: var(--blue);
-  stroke-width: 2.5;
+.camera-glyph {
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
-.input-camera line {
-  stroke: var(--blue);
-  stroke-width: 1.8;
+.camera-glyph .pyramid-face,
+.camera-glyph .pyramid-base {
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
-.input-camera text,
-.current-camera text {
+.camera-glyph .pyramid-center {
+  stroke-linecap: round;
+  stroke-width: 1.6;
+}
+
+.input-camera .pyramid-left {
+  fill: rgba(36, 95, 168, 0.16);
+  stroke: var(--blue);
+}
+
+.input-camera .pyramid-right,
+.input-camera .pyramid-base {
+  fill: rgba(36, 95, 168, 0.07);
+  stroke: var(--blue);
+}
+
+.input-camera .pyramid-center {
+  stroke: rgba(36, 95, 168, 0.82);
+}
+
+.output-camera .pyramid-left {
+  fill: rgba(166, 66, 50, 0.16);
+  stroke: var(--red);
+}
+
+.output-camera .pyramid-right,
+.output-camera .pyramid-base {
+  fill: rgba(166, 66, 50, 0.08);
+  stroke: var(--red);
+}
+
+.output-camera .pyramid-center {
+  stroke: rgba(166, 66, 50, 0.82);
+}
+
+.camera-glyph text {
   font-family: inherit;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 850;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 3px;
 }
 
 .input-camera text {
   fill: var(--blue);
 }
 
-.input-camera.active polygon {
+.output-camera text,
+.current-camera text {
+  fill: var(--red);
+}
+
+.input-camera.active .pyramid-face,
+.input-camera.active .pyramid-base {
   fill: #fff4f1;
   stroke: var(--red);
 }
 
-.input-camera.active line {
+.input-camera.active .pyramid-center {
   stroke: var(--red);
 }
 
@@ -467,18 +517,23 @@ h2 {
   fill: var(--red);
 }
 
-.current-camera circle:first-child {
-  fill: var(--red);
+.output-camera {
+  opacity: 0.42;
 }
 
-.current-camera circle:nth-child(2) {
-  fill: rgba(166, 66, 50, 0.13);
+.output-camera.active {
+  opacity: 0.7;
+}
+
+.current-camera {
+  filter: drop-shadow(0 8px 12px rgba(166, 66, 50, 0.25));
+}
+
+.current-camera .pyramid-face,
+.current-camera .pyramid-base {
+  fill: #fff4f1;
   stroke: var(--red);
-  stroke-width: 2;
-}
-
-.current-camera text {
-  fill: var(--red);
+  stroke-width: 2.8;
 }
 
 .track-controls {
@@ -514,7 +569,8 @@ h2 {
 }
 
 .icon-button:hover,
-.input-view-tile:hover {
+.input-view-tile:hover,
+.output-view-tile:hover {
   border-color: #b9c2cc;
   background: #fbfcfd;
 }
@@ -580,11 +636,20 @@ h2 {
 
 .input-view-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.input-view-tile {
+.output-view-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 9px;
+  padding: 12px;
+  background: #f7f9fb;
+}
+
+.input-view-tile,
+.output-view-tile {
   display: grid;
   min-width: 0;
   gap: 7px;
@@ -598,12 +663,14 @@ h2 {
   text-align: left;
 }
 
-.input-view-tile.active {
+.input-view-tile.active,
+.output-view-tile.active {
   border-color: var(--red);
   box-shadow: 0 0 0 2px rgba(166, 66, 50, 0.12);
 }
 
-.input-thumb-frame {
+.input-thumb-frame,
+.output-thumb-frame {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -617,19 +684,22 @@ h2 {
   font-weight: 800;
 }
 
-.input-thumb-frame.has-media img {
+.output-thumb-frame {
+  aspect-ratio: 16 / 7;
+}
+
+.input-thumb-frame.has-media img,
+.output-thumb-frame.has-media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.input-thumb-label {
-  overflow: hidden;
+.input-thumb-label,
+.output-thumb-label {
   color: var(--muted-strong);
   font-size: 12px;
   font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .view-stage {
@@ -639,7 +709,7 @@ h2 {
   align-items: stretch;
 }
 
-.target-card,
+.output-card,
 .synth-card,
 .comparison-strip {
   display: flex;
