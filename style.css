@@ -224,6 +224,10 @@ h1 {
   padding: 70px 32px;
 }
 
+section[id] {
+  scroll-margin-top: 78px;
+}
+
 .section.narrow > * {
   max-width: 900px;
 }
@@ -317,7 +321,7 @@ h2 {
 .explorer-layout {
   display: grid;
   align-items: start;
-  grid-template-columns: minmax(300px, 0.76fr) minmax(0, 1.92fr);
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.7fr);
   gap: 12px;
   padding: 12px;
 }
@@ -727,10 +731,10 @@ h2 {
 .output-view-grid {
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: repeat(3, minmax(0, 1fr));
-  flex: 1;
-  gap: 8px;
-  padding: 10px;
+  grid-template-rows: repeat(3, auto);
+  flex: 0 0 auto;
+  gap: 6px;
+  padding: 8px;
   background: #f7f9fb;
 }
 
@@ -738,8 +742,8 @@ h2 {
 .output-view-tile {
   display: grid;
   min-width: 0;
-  gap: 6px;
-  padding: 7px;
+  gap: 5px;
+  padding: 6px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -764,7 +768,7 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 16 / 8.4;
+  aspect-ratio: 16 / 6.9;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -776,7 +780,7 @@ h2 {
 
 .output-thumb-frame {
   min-height: 0;
-  aspect-ratio: auto;
+  aspect-ratio: 16 / 9.8;
 }
 
 .input-thumb-frame.has-media img,
@@ -795,7 +799,7 @@ h2 {
 
 .view-stage {
   display: grid;
-  grid-template-columns: minmax(172px, 0.52fr) minmax(0, 1.48fr);
+  grid-template-columns: minmax(150px, 0.42fr) minmax(0, 1.32fr);
   gap: 12px;
   align-items: stretch;
 }
@@ -812,7 +816,7 @@ h2 {
 .media-frame {
   position: relative;
   display: flex;
-  min-height: 210px;
+  min-height: 0;
   align-items: center;
   justify-content: center;
   overflow: hidden;
@@ -820,7 +824,7 @@ h2 {
 }
 
 .video-frame {
-  min-height: 392px;
+  height: clamp(260px, 24vw, 320px);
   background: var(--ink);
 }
 
@@ -832,7 +836,7 @@ h2 {
 }
 
 .video-frame video {
-  min-height: 392px;
+  min-height: 0;
   background: var(--ink);
 }
 
@@ -859,14 +863,15 @@ h2 {
 }
 
 figcaption {
-  padding: 10px 12px 12px;
+  padding: 8px 10px 10px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .analysis-stack {
   display: grid;
-  gap: 22px;
+  max-width: 940px;
+  gap: 18px;
 }
 
 .figure {
@@ -884,7 +889,12 @@ figcaption {
 }
 
 .analysis-figure:first-child img {
-  padding: 18px;
+  padding: 14px;
+}
+
+.analysis-figure img {
+  max-height: 520px;
+  object-fit: contain;
 }
 
 .table-wrap {
@@ -968,7 +978,7 @@ tbody tr:last-child td {
 
   .video-frame,
   .video-frame video {
-    min-height: 340px;
+    height: 300px;
   }
 
 }
@@ -994,6 +1004,10 @@ tbody tr:last-child td {
 
   .section {
     padding: 54px 22px;
+  }
+
+  section[id] {
+    scroll-margin-top: 124px;
   }
 
   h1 {
@@ -1059,7 +1073,7 @@ tbody tr:last-child td {
 
   .video-frame,
   .video-frame video {
-    min-height: 260px;
+    height: 230px;
   }
 
   .abstract-text {
