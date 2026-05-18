@@ -15,11 +15,11 @@
     <header class="site-header" aria-label="Site navigation">
       <a class="brand" href="#top">Semantic-Spatial Decoupling</a>
       <nav>
+        <a href="#demo">Demo</a>
         <a href="#abstract">Abstract</a>
+        <a href="#analysis">Analysis</a>
         <a href="#method">Method</a>
         <a href="#results">Results</a>
-        <a href="#demo">Demo</a>
-        <a href="#visuals">Visuals</a>
       </nav>
     </header>
 
@@ -31,11 +31,11 @@
             Resolving Representation Ambiguity in Feedforward Novel View Synthesis Transformer via Semantic-Spatial Decoupling
           </h1>
           <p class="subtitle">
-            A semantic-spatial branch design for reducing representation ambiguity between RGB appearance and Plucker-ray geometry.
+            A decoupled Transformer representation that separates RGB appearance and Pl&uuml;cker-ray geometry while preserving shared attention routing.
           </p>
           <div class="author-block" aria-label="Authors and affiliations">
             <p class="author-list">
-              Yihang Wu<sup>1,2*</sup>, Yihang Sun<sup>3*</sup>, Shaofeng Zhang<sup>4</sup>, Zuxuan Wu<sup>1,2</sup>, Junchi Yan<sup>3&#9993;</sup>, Xiaosong Jia<sup>1,2&#9993;</sup>, Yu-gang Jiang<sup>1,2</sup>
+              Yihang Wu<sup>1,2*</sup>, Yihang Sun<sup>3*</sup>, Shaofeng Zhang<sup>4</sup>, Zuxuan Wu<sup>1,2</sup>, Junchi Yan<sup>3&dagger;</sup>, Xiaosong Jia<sup>1,2&dagger;</sup>, Yu-gang Jiang<sup>1,2</sup>
             </p>
             <p class="affiliation-list">
               <sup>1</sup> Institute of Trustworthy Embodied Artificial Intelligence (TEAI), Fudan University<br>
@@ -43,7 +43,7 @@
               <sup>3</sup> Sch. of Artificial Intelligence &amp; Sch. of Computer Science, Shanghai Jiao Tong University<br>
               <sup>4</sup> University of Science and Technology of China
             </p>
-            <p class="contribution-note">* Equal Contributions. &#9993; Correspondence Author.</p>
+            <p class="contribution-note">* Equal Contributions. &dagger; Correspondence Author.</p>
           </div>
           <div class="hero-actions" aria-label="Project links">
             <button class="action secondary" type="button" disabled>Paper</button>
@@ -53,60 +53,96 @@
         </div>
       </section>
 
-      <section id="abstract" class="section narrow">
-        <p class="section-kicker">Abstract</p>
-        <h2>Decoupling appearance and geometry</h2>
-        <p>
-          Existing feedforward NVS transformers often project RGB patches and Plucker rays into one latent stream,
-          which can mix appearance semantics with camera-space geometry. Our design keeps semantic and spatial
-          tokens explicit, shares Q/K attention routing for coordination, and uses branch-specific value updates
-          so each branch can evolve without collapsing into a single ambiguous representation.
-        </p>
-      </section>
-
-      <section id="method" class="section muted">
+      <section id="demo" class="section demo-section">
         <div class="section-heading">
-          <p class="section-kicker">Method</p>
-          <h2>Separate branches, shared routing</h2>
+          <p class="section-kicker">Generation Process</p>
+          <h2>From sparse input views to rendered novel views</h2>
           <p>
-            The architecture preserves the compact feedforward inference path while giving appearance and geometry
-            separate feature-update channels. Training-only supervision and lightweight modulation can be enabled
-            for the full variant without changing the core decoupled token interface.
+            The model consumes posed source images and target Pl&uuml;cker rays, then directly synthesizes novel views in one feedforward pass. The viewer below is wired for rendered trajectories and side-by-side target comparisons exported by the released inference code.
           </p>
         </div>
-        <div class="method-layout">
-          <figure class="figure">
-            <img src="assets/model.png" alt="Semantic-Spatial Decoupling architecture diagram">
-            <figcaption>
-              RGB patches and Plucker rays enter separate branches. Independent-V attention shares Q/K routing and
-              applies branch-specific value projections.
-            </figcaption>
-          </figure>
-          <div class="method-cards" aria-label="Method components">
-            <article>
-              <h3>Semantic branch</h3>
-              <p>Preserves appearance structure and can receive DINOv3/iREPA supervision during training.</p>
-            </article>
-            <article>
-              <h3>Spatial branch</h3>
-              <p>Maintains camera-dependent geometric patterns and can receive DA3-derived consistency signals.</p>
-            </article>
-            <article>
-              <h3>Low-overhead base</h3>
-              <p>The base decoupled design keeps token width fixed and stays close to the original inference path.</p>
-            </article>
+        <div class="demo-shell" aria-label="Generation process viewer">
+          <div class="demo-controls" id="demoControls" aria-label="Demo scene selector"></div>
+          <div class="demo-grid">
+            <figure class="media-card input-card">
+              <div class="media-surface image-surface">
+                <img id="demoInput" alt="Input source views">
+                <div class="media-placeholder" id="demoInputPlaceholder">Input views</div>
+              </div>
+              <figcaption>Source views</figcaption>
+            </figure>
+            <figure class="media-card video-card">
+              <div class="media-surface video-surface">
+                <video id="demoVideo" controls muted loop playsinline></video>
+                <div class="media-placeholder" id="demoVideoPlaceholder">Rendered camera trajectory</div>
+              </div>
+              <figcaption id="demoCaption">Novel-view generation</figcaption>
+            </figure>
+            <figure class="media-card comparison-card">
+              <div class="media-surface image-surface">
+                <img id="demoComparison" alt="Ground truth and prediction comparison">
+                <div class="media-placeholder" id="demoComparisonPlaceholder">Target / prediction comparison</div>
+              </div>
+              <figcaption>Target views and predictions</figcaption>
+            </figure>
           </div>
         </div>
       </section>
 
-      <section id="results" class="section">
+      <section id="abstract" class="section narrow">
+        <p class="section-kicker">Abstract</p>
+        <h2>Decoupling appearance and geometry</h2>
+        <p class="abstract-text">
+          Transformer-based models have advanced feedforward novel view synthesis (NVS). Current architectures such as GS-LRM and LVSM mix semantic information (e.g., RGB) and spatial information (e.g., Pl&uuml;cker rays) into a shared feature space. Since Pl&uuml;cker rays naturally carry lattice-like spatial structure, these designs can make the spatial bias interfere with appearance representation and degrade rendering fidelity. To this end, we propose to <strong>decouple the representation of feedforward NVS transformers into separate semantic and spatial tokens</strong>. The decoupled design keeps semantic and spatial information explicit in their branches while preserving cross-branch interaction through shared attention routing. Built on this design, we introduce optional categorized supervision and bidirectional modulation: the former provides branch-specific training signals, while the latter improves interaction between the two branches. Notably, the base decoupled design introduces virtually zero additional inference latency due to its architectural design. The proposed designs achieve consistent improvements, demonstrating effectiveness across decoder-only and encoder-decoder feedforward NVS models.
+        </p>
+      </section>
+
+      <section id="analysis" class="section muted">
+        <div class="section-heading">
+          <p class="section-kicker">Feature Analysis</p>
+          <h2>Where grid-like artifacts come from</h2>
+          <p>
+            The visualizations isolate how Pl&uuml;cker-ray structure propagates through intermediate features and why separating semantic and spatial streams reduces representation ambiguity.
+          </p>
+        </div>
+        <div class="analysis-stack">
+          <figure class="figure analysis-figure">
+            <img src="assets/rgb0.png" alt="RGB-zero Plucker-ray control feature visualization">
+            <figcaption>
+              <strong>RGB-zero control.</strong> Setting input RGB values to zero while keeping Pl&uuml;cker rays unchanged still produces network-like grid patterns in intermediate features, indicating that the spatial ray representation can induce the artifacts.
+            </figcaption>
+          </figure>
+          <figure class="figure analysis-figure">
+            <img src="assets/full-vis.png" alt="Layer-wise semantic and spatial feature visualization">
+            <figcaption>
+              <strong>Layer-wise branch visualization.</strong> Semantic and spatial branches remain separately organized across layers for both input and target views, making the feature roles easier to interpret than a fully entangled token stream.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="method" class="section">
+        <div class="section-heading">
+          <p class="section-kicker">Method</p>
+          <h2>Separate branches, shared routing</h2>
+          <p>
+            RGB patches initialize semantic tokens, while Pl&uuml;cker-ray patches initialize spatial tokens. Each decoupled Transformer block computes shared Q/K attention over the full token for cross-view coordination, but applies branch-specific value projections, output projections, layer normalization, and FFNs so appearance and geometry are not forced into the same update channel.
+          </p>
+        </div>
+        <figure class="figure">
+          <img src="assets/model.png" alt="Semantic-Spatial Decoupling architecture diagram">
+          <figcaption>
+            The base decoupled design keeps the feedforward inference path compact. Optional categorized supervision trains the semantic branch with DINOv3/iREPA features and the spatial branch with DA3-derived correspondences, while bidirectional modulation adds controlled cross-branch conditioning.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section id="results" class="section muted">
         <div class="section-heading">
           <p class="section-kicker">Controlled Results</p>
           <h2>Fixed-budget comparisons</h2>
           <p>
-            Baselines and decoupled variants use the same codebase, data split, view sampling, 256x256 resolution,
-            50K-step schedule, and training budget. The numbers isolate the effect of decoupling under a controlled
-            reimplementation setting.
+            Baselines and decoupled variants use the same codebase, data split, view sampling, 256x256 resolution, 50K-step schedule, and training budget. The numbers isolate the effect of decoupling under a controlled reimplementation setting.
           </p>
         </div>
 
@@ -175,52 +211,6 @@
             </tbody>
           </table>
         </div>
-      </section>
-
-      <section id="demo" class="section muted">
-        <div class="section-heading">
-          <p class="section-kicker">Demo Page Template</p>
-          <h2>Video-ready result viewer</h2>
-          <p>
-            This section adapts the uploaded demo-page template into the project site as a compact video viewer.
-            It is ready for rendered result clips; missing media paths are shown as placeholders until the files are added.
-          </p>
-        </div>
-        <div class="demo-layout" aria-label="Video demo viewer">
-          <div class="demo-panel">
-            <div class="demo-controls" id="demoControls" aria-label="Demo video selector"></div>
-            <div class="demo-meta">
-              <p class="demo-title" id="demoTitle">Representation analysis</p>
-              <p id="demoDescription">
-                Add a video showing semantic and spatial branch behavior across views or layers.
-              </p>
-              <p class="asset-hint" id="demoAssetHint">Expected video: assets/demo/representation-analysis.mp4</p>
-            </div>
-          </div>
-          <div class="video-frame" id="demoFrame">
-            <video id="demoVideo" controls muted loop playsinline></video>
-            <div class="video-placeholder" id="demoPlaceholder">
-              Add <code>assets/demo/representation-analysis.mp4</code> to activate this slot.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="visuals" class="section">
-        <div class="section-heading">
-          <p class="section-kicker">Qualitative Snapshot</p>
-          <h2>Representative novel view synthesis outputs</h2>
-          <p>
-            The static page keeps one qualitative image as a quick preview. Additional feature maps and comparisons
-            are intentionally left for rendered videos in the demo viewer.
-          </p>
-        </div>
-        <figure class="figure">
-          <img src="assets/infer.png" alt="Novel view synthesis qualitative comparison">
-          <figcaption>
-            Representative outputs under the controlled training budget.
-          </figcaption>
-        </figure>
       </section>
     </main>
 
