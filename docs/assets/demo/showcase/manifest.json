@@ -1,0 +1,46 @@
+{
+  "title": "Semantic-spatial generation showcase",
+  "description": "Novel-view trajectory generated from sparse posed source views and target Plucker-ray queries.",
+  "inputViews": [
+    {
+      "label": "Input 1",
+      "src": "",
+      "camera": [-0.82, 0.28, 0.2]
+    },
+    {
+      "label": "Input 2",
+      "src": "",
+      "camera": [-0.22, 0.18, 0.05]
+    },
+    {
+      "label": "Input 3",
+      "src": "",
+      "camera": [0.42, 0.26, 0.34]
+    },
+    {
+      "label": "Input 4",
+      "src": "",
+      "camera": [0.88, 0.34, 0.7]
+    }
+  ],
+  "targetView": {
+    "label": "Target view",
+    "src": "",
+    "camera": [0.16, 0.48, 0.88]
+  },
+  "video": {
+    "src": "",
+    "poster": ""
+  },
+  "comparison": {
+    "src": ""
+  },
+  "trajectory": [
+    [-0.82, 0.28, 0.2],
+    [-0.56, 0.32, 0.34],
+    [-0.22, 0.36, 0.48],
+    [0.16, 0.48, 0.88],
+    [0.52, 0.4, 0.72],
+    [0.88, 0.34, 0.7]
+  ]
+}
