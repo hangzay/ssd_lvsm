@@ -1,25 +1,11 @@
-const demos = [
-  {
-    id: "re10k",
-    label: "RE10K Scene",
-    caption: "Novel-view trajectory generated from sparse posed source views.",
-    input: "assets/demo/re10k/input.png",
-    video: "assets/demo/re10k/rendered_video.mp4",
-    comparison: "assets/demo/re10k/gt_vs_pred.png",
-    available: false,
-  },
-  {
-    id: "objaverse",
-    label: "Objaverse Object",
-    caption: "Feedforward synthesis along an interpolated object-view camera path.",
-    input: "assets/demo/objaverse/input.png",
-    video: "assets/demo/objaverse/rendered_video.mp4",
-    comparison: "assets/demo/objaverse/gt_vs_pred.png",
-    available: false,
-  },
-];
+const demo = {
+  caption: "Novel-view trajectory generated from sparse posed source views.",
+  input: "assets/demo/showcase/input.png",
+  video: "assets/demo/showcase/rendered_video.mp4",
+  comparison: "assets/demo/showcase/gt_vs_pred.png",
+  available: false,
+};
 
-const controls = document.getElementById("demoControls");
 const inputImage = document.getElementById("demoInput");
 const inputPlaceholder = document.getElementById("demoInputPlaceholder");
 const video = document.getElementById("demoVideo");
@@ -63,12 +49,8 @@ async function setVideo(path, available) {
   }
 }
 
-async function selectDemo(demo) {
+async function loadDemo() {
   caption.textContent = demo.caption;
-
-  for (const button of controls.querySelectorAll(".demo-button")) {
-    button.classList.toggle("active", button.dataset.demoId === demo.id);
-  }
 
   await Promise.all([
     setImage(inputImage, inputPlaceholder, demo.input, "Input views", demo.available),
@@ -77,14 +59,4 @@ async function selectDemo(demo) {
   ]);
 }
 
-for (const demo of demos) {
-  const button = document.createElement("button");
-  button.className = "demo-button";
-  button.type = "button";
-  button.dataset.demoId = demo.id;
-  button.textContent = demo.label;
-  button.addEventListener("click", () => selectDemo(demo));
-  controls.appendChild(button);
-}
-
-selectDemo(demos[0]);
+loadDemo();
