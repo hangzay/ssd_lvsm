@@ -1,10 +1,9 @@
 # Demo Assets
 
-The project page looks for one folder per demo scene:
+The project page looks for one model-generation showcase folder:
 
 ```text
-assets/demo/re10k/
-assets/demo/objaverse/
+assets/demo/showcase/
 ```
 
 Minimum files per scene:
@@ -13,5 +12,5 @@ Minimum files per scene:
 - `rendered_video.mp4`: trajectory render exported when `inference.render_video=true`
 - `gt_vs_pred.png`: target/prediction strip exported by `utils.metric_utils.export_results`
 
-Use the same filenames for each scene folder. Update `docs/demo.js` only if a different scene name or path is needed.
-After adding the files, set that scene's `available` field to `true` in `docs/demo.js`.
+Use the same filenames in this folder. Update `docs/demo.js` only if a different path is needed.
+After adding the files, set the `available` field to `true` in `docs/demo.js`.
