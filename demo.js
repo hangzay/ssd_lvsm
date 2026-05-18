@@ -17,9 +17,6 @@ const fallbackDemo = {
     src: "",
     poster: "",
   },
-  comparison: {
-    src: "",
-  },
   trajectory: [
     [-0.38, 0.3, 0.62],
     [0.02, 0.37, 0.78],
@@ -35,8 +32,6 @@ const outputGrid = document.getElementById("outputViewGrid");
 const video = document.getElementById("demoVideo");
 const videoPlaceholder = document.getElementById("demoVideoPlaceholder");
 const caption = document.getElementById("demoCaption");
-const comparisonImage = document.getElementById("comparisonImage");
-const comparisonPlaceholder = document.getElementById("comparisonPlaceholder");
 const cameraMap = document.getElementById("cameraMap");
 const cameraMapPlaceholder = document.getElementById("cameraMapPlaceholder");
 const trackSlider = document.getElementById("trackSlider");
@@ -74,7 +69,6 @@ async function loadManifest() {
       inputViews: manifest.inputViews || fallbackDemo.inputViews,
       outputViews,
       video: manifest.video || fallbackDemo.video,
-      comparison: manifest.comparison || fallbackDemo.comparison,
       trajectory: trajectory.length > 0 ? trajectory : fallbackDemo.trajectory,
     };
   } catch {
@@ -87,20 +81,6 @@ function pointToSvg(point) {
   const sx = 320 + x * 185 + z * 86;
   const sy = 332 + x * 34 - z * 104 - y * 118;
   return [sx, sy];
-}
-
-function setMediaPlaceholder(element, placeholder, label) {
-  element.removeAttribute("src");
-  element.closest(".media-frame").classList.remove("has-media");
-  placeholder.textContent = label;
-}
-
-async function setImage(element, placeholder, src, label) {
-  setMediaPlaceholder(element, placeholder, label);
-  if (src && (await assetExists(src))) {
-    element.src = src;
-    element.closest(".media-frame").classList.add("has-media");
-  }
 }
 
 async function setVideo(src, poster) {
@@ -366,7 +346,6 @@ async function loadDemo() {
     renderInputViews(),
     renderOutputViews(),
     setVideo(demo.video.src, demo.video.poster),
-    setImage(comparisonImage, comparisonPlaceholder, demo.comparison.src, "Target / prediction strip"),
   ]);
 
   renderCameraMap();

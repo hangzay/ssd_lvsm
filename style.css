@@ -326,9 +326,7 @@ h2 {
 .stage-panel,
 .input-deck,
 .output-card,
-.synth-card,
-.branch-flow,
-.comparison-strip {
+.synth-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -710,8 +708,7 @@ h2 {
 }
 
 .output-card,
-.synth-card,
-.comparison-strip {
+.synth-card {
   display: flex;
   min-width: 0;
   margin: 0;
@@ -732,10 +729,6 @@ h2 {
 .video-frame {
   min-height: 430px;
   background: var(--ink);
-}
-
-.comparison-strip .media-frame {
-  min-height: 170px;
 }
 
 .media-frame img,
@@ -770,74 +763,6 @@ h2 {
 
 .media-frame.has-media .media-placeholder {
   display: none;
-}
-
-.branch-flow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(82px, 0.46fr) minmax(0, 1fr) minmax(82px, 0.46fr) minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  padding: 14px;
-}
-
-.flow-node {
-  display: grid;
-  gap: 4px;
-  min-height: 78px;
-  align-content: center;
-  padding: 11px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fbfcfd;
-}
-
-.flow-node span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 750;
-}
-
-.flow-node strong {
-  color: var(--text);
-  font-size: 15px;
-}
-
-.semantic-node {
-  border-left: 4px solid var(--blue);
-}
-
-.spatial-node {
-  border-left: 4px solid var(--green);
-}
-
-.output-node {
-  border-left: 4px solid var(--red);
-}
-
-.flow-link {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 850;
-  line-height: 1.25;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.flow-link::before {
-  display: block;
-  width: 100%;
-  margin-bottom: 5px;
-  border-top: 2px solid #c9d2dc;
-  content: "";
-}
-
-.generation-explorer code {
-  padding: 1px 5px;
-  border-radius: 5px;
-  background: #eef1f4;
-  color: var(--muted-strong);
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.92em;
 }
 
 figcaption {
@@ -948,15 +873,6 @@ tbody tr:last-child td {
     min-height: 310px;
   }
 
-  .branch-flow {
-    grid-template-columns: 1fr;
-  }
-
-  .flow-link::before {
-    width: 48px;
-    margin-left: auto;
-    margin-right: auto;
-  }
 }
 
 @media (max-width: 900px) {
