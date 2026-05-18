@@ -234,7 +234,7 @@ class DecoupledNVSDecoder(nn.Module):
 
         if images is None:
             batch_size, num_views, _, height, width = pose_cond.shape
-            image = torch.zeros((batch_size, num_views, 3, height, width), device=pose_cond.device)
+            image = torch.zeros((batch_size, num_views, 3, height, width), device=pose_cond.device, dtype=pose_cond.dtype)
         else:
             image = images * 2.0 - 1.0
         return image, pose_cond
@@ -372,7 +372,7 @@ class DecoupledNVSDecoder(nn.Module):
         all_fxfycxcy[:, :, 3] = all_intrinsics[:, :, 1, 2]
         ray_o, ray_d = self.process_data.compute_rays(all_c2ws, all_fxfycxcy, h=height, w=width, device=device)
         target_images, target_pose = self.get_posed_input(ray_o=ray_o, ray_d=ray_d)
-        target_tokens = torch.cat([self.image_tokenizer(target_images), self.target_pose_tokenizer(target_pose)], dim=-1)
+        target_tokens = torch.cat([self.image_tokenizer(target_images), self.pose_tokenizer(target_pose)], dim=-1)
         target_tokens = target_tokens.reshape(batch_size, num_frames * num_patches, self.d_model)
 
         video = []

@@ -127,3 +127,7 @@ bash scripts/eval_objaverse_decoder.sh
 ```
 
 Set `training.checkpoint_dir=path_to_checkpoint_or_dir/` and `inference_out_dir=path_to_eval_output/` as command-line overrides when needed. Evaluation writes images, metrics, and optional HTML pages under `inference_out_dir`.
+
+## License and Acknowledgements
+
+This repository is released under the MIT License; see [LICENSE.md](LICENSE.md). DINOv3 helper code, Nerfstudio-derived camera utilities, datasets, model weights, rendered assets, and generated supervision caches remain governed by their original licenses and terms. This project also uses DINOv3 and DA3-derived supervision signals for the optional branch-specific training losses.

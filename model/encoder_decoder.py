@@ -180,7 +180,7 @@ class DecoupledNVSEncoderDecoder(nn.Module):
             pose_cond = torch.cat([torch.cross(ray_o, ray_d, dim=2), ray_d], dim=2)
         if images is None:
             batch_size, num_views, _, height, width = pose_cond.shape
-            image = torch.zeros((batch_size, num_views, 3, height, width), device=pose_cond.device)
+            image = torch.zeros((batch_size, num_views, 3, height, width), device=pose_cond.device, dtype=pose_cond.dtype)
         else:
             image = images * 2.0 - 1.0
         return image, pose_cond
