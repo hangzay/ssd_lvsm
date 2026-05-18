@@ -172,7 +172,7 @@
             RGB patches initialize semantic tokens, while Pl&uuml;cker-ray patches initialize spatial tokens. Each decoupled Transformer block computes shared Q/K attention over the full token for cross-view coordination, but applies branch-specific value projections, output projections, layer normalization, and FFNs so appearance and geometry are not forced into the same update channel.
           </p>
         </div>
-        <figure class="figure">
+        <figure class="figure method-figure">
           <img src="assets/model.png" alt="Semantic-Spatial Decoupling architecture diagram">
           <figcaption>
             The base decoupled design keeps the feedforward inference path compact. Optional categorized supervision trains the semantic branch with DINOv3/iREPA features and the spatial branch with DA3-derived correspondences, while bidirectional modulation adds controlled cross-branch conditioning.

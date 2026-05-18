@@ -897,6 +897,10 @@ figcaption {
   object-fit: contain;
 }
 
+.method-figure {
+  max-width: 920px;
+}
+
 .table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);
