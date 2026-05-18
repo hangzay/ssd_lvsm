@@ -3,18 +3,16 @@ const MANIFEST_PATH = "assets/demo/showcase/manifest.json";
 const fallbackDemo = {
   title: "Semantic-spatial generation showcase",
   description:
-    "Sparse posed images initialize semantic tokens, while target Plucker rays define the spatial query.",
+    "Two posed inputs initialize semantic tokens, while three target Plucker-ray queries define the output views.",
   inputViews: [
-    { label: "Input 1", src: "", camera: [-0.82, 0.28, 0.2] },
-    { label: "Input 2", src: "", camera: [-0.22, 0.18, 0.05] },
-    { label: "Input 3", src: "", camera: [0.42, 0.26, 0.34] },
-    { label: "Input 4", src: "", camera: [0.88, 0.34, 0.7] },
+    { label: "Input 1", src: "", camera: [-0.72, 0.22, 0.18] },
+    { label: "Input 2", src: "", camera: [0.72, 0.24, 0.18] },
   ],
-  targetView: {
-    label: "Target view",
-    src: "",
-    camera: [0.16, 0.48, 0.88],
-  },
+  outputViews: [
+    { label: "Output 1", src: "", camera: [-0.38, 0.3, 0.62] },
+    { label: "Output 2", src: "", camera: [0.02, 0.37, 0.78] },
+    { label: "Output 3", src: "", camera: [0.44, 0.31, 0.62] },
+  ],
   video: {
     src: "",
     poster: "",
@@ -23,12 +21,9 @@ const fallbackDemo = {
     src: "",
   },
   trajectory: [
-    [-0.82, 0.28, 0.2],
-    [-0.56, 0.32, 0.34],
-    [-0.22, 0.36, 0.48],
-    [0.16, 0.48, 0.88],
-    [0.52, 0.4, 0.72],
-    [0.88, 0.34, 0.7],
+    [-0.38, 0.3, 0.62],
+    [0.02, 0.37, 0.78],
+    [0.44, 0.31, 0.62],
   ],
 };
 
@@ -36,8 +31,7 @@ const title = document.getElementById("demoTitle");
 const viewCount = document.getElementById("demoViewCount");
 const frameCount = document.getElementById("demoFrameCount");
 const inputGrid = document.getElementById("inputViewGrid");
-const targetImage = document.getElementById("targetImage");
-const targetPlaceholder = document.getElementById("targetPlaceholder");
+const outputGrid = document.getElementById("outputViewGrid");
 const video = document.getElementById("demoVideo");
 const videoPlaceholder = document.getElementById("demoVideoPlaceholder");
 const caption = document.getElementById("demoCaption");
@@ -69,14 +63,19 @@ async function loadManifest() {
       return fallbackDemo;
     }
     const manifest = await response.json();
+    const outputViews =
+      manifest.outputViews ||
+      manifest.targetViews ||
+      (manifest.targetView ? [manifest.targetView] : fallbackDemo.outputViews);
+    const trajectory = manifest.trajectory || outputViews.map((view) => view.camera).filter(Boolean);
     return {
       ...fallbackDemo,
       ...manifest,
       inputViews: manifest.inputViews || fallbackDemo.inputViews,
-      targetView: manifest.targetView || fallbackDemo.targetView,
+      outputViews,
       video: manifest.video || fallbackDemo.video,
       comparison: manifest.comparison || fallbackDemo.comparison,
-      trajectory: manifest.trajectory || fallbackDemo.trajectory,
+      trajectory: trajectory.length > 0 ? trajectory : fallbackDemo.trajectory,
     };
   } catch {
     return fallbackDemo;
@@ -85,8 +84,8 @@ async function loadManifest() {
 
 function pointToSvg(point) {
   const [x, y, z] = point;
-  const sx = 320 + x * 215;
-  const sy = 300 - z * 165 - y * 72;
+  const sx = 320 + x * 185 + z * 86;
+  const sy = 332 + x * 34 - z * 104 - y * 118;
   return [sx, sy];
 }
 
@@ -160,6 +159,45 @@ async function renderInputViews() {
   }
 }
 
+async function renderOutputViews() {
+  outputGrid.replaceChildren();
+  const tiles = await Promise.all(
+    demo.outputViews.map(async (view, index) => {
+      const tile = document.createElement("button");
+      tile.className = "output-view-tile";
+      tile.type = "button";
+      tile.dataset.index = String(index);
+      tile.setAttribute("aria-label", `Select ${view.label}`);
+
+      const frame = document.createElement("span");
+      frame.className = "output-thumb-frame";
+      const label = document.createElement("span");
+      label.className = "output-thumb-label";
+      label.textContent = view.label || `Output ${index + 1}`;
+
+      if (view.src && (await assetExists(view.src))) {
+        const img = document.createElement("img");
+        img.src = view.src;
+        img.alt = view.label || `Output view ${index + 1}`;
+        frame.classList.add("has-media");
+        frame.appendChild(img);
+      } else {
+        frame.textContent = view.label || `Output ${index + 1}`;
+      }
+
+      tile.append(frame, label);
+      tile.addEventListener("mouseenter", () => updateTrackPosition(index));
+      tile.addEventListener("focus", () => updateTrackPosition(index));
+      tile.addEventListener("click", () => updateTrackPosition(index));
+      return tile;
+    })
+  );
+
+  for (const tile of tiles) {
+    outputGrid.appendChild(tile);
+  }
+}
+
 function svgEl(name, attributes = {}) {
   const element = document.createElementNS("http://www.w3.org/2000/svg", name);
   for (const [key, value] of Object.entries(attributes)) {
@@ -168,17 +206,58 @@ function svgEl(name, attributes = {}) {
   return element;
 }
 
+function drawPlaneGrid() {
+  const plane = svgEl("g", { class: "map-plane" });
+  const corners = [
+    pointToSvg([-1, 0, 0]),
+    pointToSvg([1, 0, 0]),
+    pointToSvg([1, 0, 1]),
+    pointToSvg([-1, 0, 1]),
+  ];
+  plane.appendChild(
+    svgEl("polygon", {
+      class: "map-floor",
+      points: corners.map(([x, y]) => `${x},${y}`).join(" "),
+    })
+  );
+
+  const grid = svgEl("g", { class: "map-grid-lines" });
+  for (let i = 0; i <= 6; i += 1) {
+    const x = -1 + (i / 6) * 2;
+    const [x1, y1] = pointToSvg([x, 0, 0]);
+    const [x2, y2] = pointToSvg([x, 0, 1]);
+    grid.appendChild(svgEl("line", { x1, y1, x2, y2 }));
+  }
+  for (let i = 0; i <= 5; i += 1) {
+    const z = i / 5;
+    const [x1, y1] = pointToSvg([-1, 0, z]);
+    const [x2, y2] = pointToSvg([1, 0, z]);
+    grid.appendChild(svgEl("line", { x1, y1, x2, y2 }));
+  }
+  plane.appendChild(grid);
+  return plane;
+}
+
+function buildCameraGlyph(className, label) {
+  const camera = svgEl("g", { class: `camera-glyph ${className}`, "data-label": label });
+  const left = "-18,16";
+  const right = "18,16";
+  const bottom = "0,38";
+
+  camera.appendChild(svgEl("polygon", { class: "pyramid-face pyramid-left", points: `0,-16 ${left} ${bottom}` }));
+  camera.appendChild(svgEl("polygon", { class: "pyramid-face pyramid-right", points: `0,-16 ${right} ${bottom}` }));
+  camera.appendChild(svgEl("polygon", { class: "pyramid-base", points: `${left} ${right} ${bottom}` }));
+  camera.appendChild(svgEl("line", { class: "pyramid-center", x1: 0, y1: -16, x2: 0, y2: 38 }));
+  const text = svgEl("text", { x: 22, y: -20 });
+  text.textContent = label;
+  camera.appendChild(text);
+  return camera;
+}
+
 function drawCamera(group, point, className, label) {
   const [x, y] = pointToSvg(point);
-  const camera = svgEl("g", { class: className, "data-label": label });
-  const body = svgEl("polygon", {
-    points: `${x},${y - 10} ${x - 13},${y + 10} ${x + 13},${y + 10}`,
-  });
-  const rayLeft = svgEl("line", { x1: x, y1: y, x2: x - 24, y2: y + 42 });
-  const rayRight = svgEl("line", { x1: x, y1: y, x2: x + 24, y2: y + 42 });
-  const text = svgEl("text", { x: x + 15, y: y - 12 });
-  text.textContent = label;
-  camera.append(body, rayLeft, rayRight, text);
+  const camera = buildCameraGlyph(className, label);
+  camera.setAttribute("transform", `translate(${x} ${y})`);
   group.appendChild(camera);
 }
 
@@ -186,16 +265,7 @@ function renderCameraMap() {
   cameraMap.replaceChildren();
   cameraMapPlaceholder.hidden = true;
 
-  const grid = svgEl("g", { class: "map-grid-lines" });
-  for (let i = 0; i <= 6; i += 1) {
-    const x = 80 + i * 80;
-    grid.appendChild(svgEl("line", { x1: x, y1: 58, x2: x, y2: 360 }));
-  }
-  for (let i = 0; i <= 4; i += 1) {
-    const y = 90 + i * 58;
-    grid.appendChild(svgEl("line", { x1: 76, y1: y, x2: 564, y2: y }));
-  }
-  cameraMap.appendChild(grid);
+  cameraMap.appendChild(drawPlaneGrid());
 
   const trajectoryPoints = demo.trajectory.map(pointToSvg);
   const path = svgEl("polyline", {
@@ -213,11 +283,15 @@ function renderCameraMap() {
   });
   cameraMap.appendChild(inputGroup);
 
-  const targetGroup = svgEl("g", { id: "currentCamera", class: "current-camera" });
-  targetGroup.appendChild(svgEl("circle", { r: 10 }));
-  targetGroup.appendChild(svgEl("circle", { r: 22 }));
-  targetGroup.appendChild(svgEl("text", { x: 16, y: -16 }));
-  cameraMap.appendChild(targetGroup);
+  const outputGroup = svgEl("g", { id: "outputCameras" });
+  demo.outputViews.forEach((view, index) => {
+    drawCamera(outputGroup, view.camera, "output-camera", String(index + 1));
+  });
+  cameraMap.appendChild(outputGroup);
+
+  const currentGroup = buildCameraGlyph("current-camera", "out 1");
+  currentGroup.setAttribute("id", "currentCamera");
+  cameraMap.appendChild(currentGroup);
   updateTrackPosition(0);
 }
 
@@ -234,14 +308,18 @@ function updateRayFan(currentPoint) {
 function updateTrackPosition(index) {
   const maxIndex = Math.max(demo.trajectory.length - 1, 0);
   currentTrackIndex = Math.max(0, Math.min(index, maxIndex));
-  const point = demo.trajectory[currentTrackIndex] || demo.targetView.camera;
+  const point =
+    demo.trajectory[currentTrackIndex] ||
+    demo.outputViews[currentTrackIndex]?.camera ||
+    fallbackDemo.outputViews[0].camera;
   const [x, y] = pointToSvg(point);
   const current = document.getElementById("currentCamera");
   current.setAttribute("transform", `translate(${x} ${y})`);
-  current.querySelector("text").textContent = "target";
+  current.querySelector("text").textContent = `out ${currentTrackIndex + 1}`;
   updateRayFan(point);
   trackSlider.value = String(currentTrackIndex);
   trackPosition.textContent = `${currentTrackIndex + 1}/${maxIndex + 1}`;
+  setActiveOutput(currentTrackIndex);
 }
 
 function setActiveInput(index) {
@@ -249,6 +327,15 @@ function setActiveInput(index) {
     tile.classList.toggle("active", tile.dataset.index === String(index));
   }
   for (const camera of cameraMap.querySelectorAll(".input-camera")) {
+    camera.classList.toggle("active", camera.dataset.label === String(index + 1));
+  }
+}
+
+function setActiveOutput(index) {
+  for (const tile of outputGrid.querySelectorAll(".output-view-tile")) {
+    tile.classList.toggle("active", tile.dataset.index === String(index));
+  }
+  for (const camera of cameraMap.querySelectorAll(".output-camera")) {
     camera.classList.toggle("active", camera.dataset.label === String(index + 1));
   }
 }
@@ -266,7 +353,7 @@ async function loadDemo() {
   title.textContent = demo.title || fallbackDemo.title;
   caption.textContent = demo.description || fallbackDemo.description;
   viewCount.textContent = String(demo.inputViews.length);
-  frameCount.textContent = String(demo.trajectory.length);
+  frameCount.textContent = String(demo.outputViews.length);
 
   trackSlider.max = String(Math.max(demo.trajectory.length - 1, 0));
   trackSlider.value = "0";
@@ -277,13 +364,14 @@ async function loadDemo() {
 
   await Promise.all([
     renderInputViews(),
-    setImage(targetImage, targetPlaceholder, demo.targetView.src, demo.targetView.label || "Target view"),
+    renderOutputViews(),
     setVideo(demo.video.src, demo.video.poster),
     setImage(comparisonImage, comparisonPlaceholder, demo.comparison.src, "Target / prediction strip"),
   ]);
 
   renderCameraMap();
   setActiveInput(0);
+  setActiveOutput(0);
 }
 
 loadDemo();
