@@ -4,38 +4,35 @@
   "inputViews": [
     {
       "label": "Input 1",
-      "src": "",
+      "src": "assets/demo/showcase/input_01.png",
       "camera": [-0.72, 0.22, 0.18]
     },
     {
       "label": "Input 2",
-      "src": "",
+      "src": "assets/demo/showcase/input_02.png",
       "camera": [0.72, 0.24, 0.18]
     }
   ],
   "outputViews": [
     {
       "label": "Output 1",
-      "src": "",
+      "src": "assets/demo/showcase/output_01.png",
       "camera": [-0.38, 0.3, 0.62]
     },
     {
       "label": "Output 2",
-      "src": "",
+      "src": "assets/demo/showcase/output_02.png",
       "camera": [0.02, 0.37, 0.78]
     },
     {
       "label": "Output 3",
-      "src": "",
+      "src": "assets/demo/showcase/output_03.png",
       "camera": [0.44, 0.31, 0.62]
     }
   ],
   "video": {
     "src": "",
     "poster": ""
-  },
-  "comparison": {
-    "src": ""
   },
   "trajectory": [
     [-0.38, 0.3, 0.62],

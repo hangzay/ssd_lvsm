@@ -126,31 +126,6 @@
                   <figcaption id="demoCaption">Novel-view trajectory generated from sparse posed source views.</figcaption>
                 </figure>
               </div>
-
-              <div class="branch-flow" aria-label="Semantic-spatial generation flow">
-                <div class="flow-node semantic-node">
-                  <span>2 RGB inputs</span>
-                  <strong>Semantic tokens</strong>
-                </div>
-                <div class="flow-link">shared Q/K routing</div>
-                <div class="flow-node spatial-node">
-                  <span>3 target Pl&uuml;cker rays</span>
-                  <strong>Spatial tokens</strong>
-                </div>
-                <div class="flow-link">independent V updates</div>
-                <div class="flow-node output-node">
-                  <span>Rendering layer</span>
-                  <strong>3 synthesized views</strong>
-                </div>
-              </div>
-
-              <figure class="comparison-strip">
-                <div class="media-frame image-frame">
-                  <img id="comparisonImage" alt="Ground truth and prediction comparison">
-                  <div class="media-placeholder" id="comparisonPlaceholder">Target / prediction strip</div>
-                </div>
-                <figcaption>Optional exported comparison from <code>gt_vs_pred.png</code>.</figcaption>
-              </figure>
             </div>
           </div>
         </div>
