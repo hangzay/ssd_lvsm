@@ -41,6 +41,17 @@ const trackForward = document.getElementById("trackForward");
 
 let demo = fallbackDemo;
 let currentTrackIndex = 0;
+let activeInputIndex = 0;
+let spatialInteractionReady = false;
+
+const spatialView = {
+  yaw: -0.72,
+  pitch: -0.56,
+  zoom: 1.18,
+  isDragging: false,
+  lastX: 0,
+  lastY: 0,
+};
 
 async function assetExists(path) {
   try {
@@ -74,13 +85,6 @@ async function loadManifest() {
   } catch {
     return fallbackDemo;
   }
-}
-
-function pointToSvg(point) {
-  const [x, y, z] = point;
-  const sx = 320 + x * 185 + z * 86;
-  const sy = 332 + x * 34 - z * 104 - y * 118;
-  return [sx, sy];
 }
 
 async function setVideo(src, poster) {
@@ -186,128 +190,329 @@ function svgEl(name, attributes = {}) {
   return element;
 }
 
-function drawPlaneGrid() {
-  const plane = svgEl("g", { class: "map-plane" });
-  const corners = [
-    pointToSvg([-1, 0, 0]),
-    pointToSvg([1, 0, 0]),
-    pointToSvg([1, 0, 1]),
-    pointToSvg([-1, 0, 1]),
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function vecAdd(a, b) {
+  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+}
+
+function vecSub(a, b) {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+}
+
+function vecScale(a, scale) {
+  return [a[0] * scale, a[1] * scale, a[2] * scale];
+}
+
+function vecLength(a) {
+  return Math.hypot(a[0], a[1], a[2]);
+}
+
+function vecNormalize(a, fallback = [0, 0, 1]) {
+  const length = vecLength(a);
+  if (length < 0.0001) {
+    return fallback;
+  }
+  return [a[0] / length, a[1] / length, a[2] / length];
+}
+
+function vecCross(a, b) {
+  return [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
   ];
-  plane.appendChild(
-    svgEl("polygon", {
-      class: "map-floor",
-      points: corners.map(([x, y]) => `${x},${y}`).join(" "),
-    })
-  );
+}
+
+function rotateWorld(point) {
+  const centered = [point[0], point[1] * 1.28 - 0.1, point[2] - 0.48];
+  const cosY = Math.cos(spatialView.yaw);
+  const sinY = Math.sin(spatialView.yaw);
+  const yawedX = centered[0] * cosY - centered[2] * sinY;
+  const yawedZ = centered[0] * sinY + centered[2] * cosY;
+
+  const cosP = Math.cos(spatialView.pitch);
+  const sinP = Math.sin(spatialView.pitch);
+  const pitchedY = centered[1] * cosP - yawedZ * sinP;
+  const pitchedZ = centered[1] * sinP + yawedZ * cosP;
+
+  return [yawedX, pitchedY, pitchedZ];
+}
+
+function projectPoint(point) {
+  const rotated = rotateWorld(point);
+  const distance = 3.05;
+  const depth = distance + rotated[2];
+  const perspective = (640 * spatialView.zoom) / depth;
+  return {
+    x: 320 + rotated[0] * perspective,
+    y: 236 - rotated[1] * perspective,
+    depth: rotated[2],
+    scale: perspective / 260,
+  };
+}
+
+function pointsToAttribute(points) {
+  return points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
+}
+
+function draw3dLine(group, from, to, className, extra = {}) {
+  const a = projectPoint(from);
+  const b = projectPoint(to);
+  group.appendChild(svgEl("line", { class: className, x1: a.x, y1: a.y, x2: b.x, y2: b.y, ...extra }));
+}
+
+function drawSceneVolume() {
+  const volume = svgEl("g", { class: "scene-volume" });
+  const floorCorners = [
+    projectPoint([-1.08, -0.06, -0.08]),
+    projectPoint([1.08, -0.06, -0.08]),
+    projectPoint([1.08, -0.06, 1.08]),
+    projectPoint([-1.08, -0.06, 1.08]),
+  ];
+  volume.appendChild(svgEl("polygon", { class: "map-floor", points: pointsToAttribute(floorCorners) }));
+
+  const backCorners = [
+    projectPoint([-1.08, -0.06, 1.08]),
+    projectPoint([1.08, -0.06, 1.08]),
+    projectPoint([1.08, 0.64, 1.08]),
+    projectPoint([-1.08, 0.64, 1.08]),
+  ];
+  volume.appendChild(svgEl("polygon", { class: "map-backdrop", points: pointsToAttribute(backCorners) }));
 
   const grid = svgEl("g", { class: "map-grid-lines" });
+  for (let i = 0; i <= 8; i += 1) {
+    const x = -1.08 + (i / 8) * 2.16;
+    draw3dLine(grid, [x, -0.055, -0.08], [x, -0.055, 1.08], "grid-line");
+  }
   for (let i = 0; i <= 6; i += 1) {
-    const x = -1 + (i / 6) * 2;
-    const [x1, y1] = pointToSvg([x, 0, 0]);
-    const [x2, y2] = pointToSvg([x, 0, 1]);
-    grid.appendChild(svgEl("line", { x1, y1, x2, y2 }));
+    const z = -0.08 + (i / 6) * 1.16;
+    draw3dLine(grid, [-1.08, -0.055, z], [1.08, -0.055, z], "grid-line");
   }
-  for (let i = 0; i <= 5; i += 1) {
-    const z = i / 5;
-    const [x1, y1] = pointToSvg([-1, 0, z]);
-    const [x2, y2] = pointToSvg([1, 0, z]);
-    grid.appendChild(svgEl("line", { x1, y1, x2, y2 }));
+  for (let i = 1; i <= 3; i += 1) {
+    const y = -0.06 + i * 0.2;
+    draw3dLine(grid, [-1.08, y, 1.08], [1.08, y, 1.08], "wall-grid-line");
   }
-  plane.appendChild(grid);
-  return plane;
+  volume.appendChild(grid);
+
+  const axes = svgEl("g", { class: "scene-axes" });
+  draw3dLine(axes, [-1.08, -0.04, -0.08], [1.08, -0.04, -0.08], "axis-line axis-x");
+  draw3dLine(axes, [-1.08, -0.04, -0.08], [-1.08, 0.64, -0.08], "axis-line axis-y");
+  draw3dLine(axes, [-1.08, -0.04, -0.08], [-1.08, -0.04, 1.08], "axis-line axis-z");
+  volume.appendChild(axes);
+
+  return volume;
 }
 
-function buildCameraGlyph(className, label) {
-  const camera = svgEl("g", { class: `camera-glyph ${className}`, "data-label": label });
-  const left = "-18,16";
-  const right = "18,16";
-  const bottom = "0,38";
+function createFrustum(view, index, type) {
+  const center = view.camera || fallbackDemo.outputViews[0].camera;
+  const focus = [0, 0.04, 0.48];
+  const forward = vecNormalize(vecSub(focus, center));
+  let right = vecNormalize(vecCross(forward, [0, 1, 0]), [1, 0, 0]);
+  let up = vecNormalize(vecCross(right, forward), [0, 1, 0]);
+  right = vecScale(right, type === "current" ? 0.12 : 0.095);
+  up = vecScale(up, type === "current" ? 0.082 : 0.066);
 
-  camera.appendChild(svgEl("polygon", { class: "pyramid-face pyramid-left", points: `0,-16 ${left} ${bottom}` }));
-  camera.appendChild(svgEl("polygon", { class: "pyramid-face pyramid-right", points: `0,-16 ${right} ${bottom}` }));
-  camera.appendChild(svgEl("polygon", { class: "pyramid-base", points: `${left} ${right} ${bottom}` }));
-  camera.appendChild(svgEl("line", { class: "pyramid-center", x1: 0, y1: -16, x2: 0, y2: 38 }));
-  const text = svgEl("text", { x: 22, y: -20 });
+  const near = vecAdd(center, vecScale(forward, type === "current" ? 0.18 : 0.15));
+  const corners = [
+    vecAdd(vecAdd(near, right), up),
+    vecAdd(vecSub(near, right), up),
+    vecSub(vecSub(near, right), up),
+    vecSub(vecAdd(near, right), up),
+  ];
+  const projectedCenter = projectPoint(center);
+  const projectedCorners = corners.map(projectPoint);
+  const label = type === "input" ? `in ${index + 1}` : `out ${index + 1}`;
+  const classes = [
+    "camera-frustum",
+    type === "input" ? "input-camera" : "output-camera",
+    type === "current" ? "current-camera active" : "",
+    type === "input" && index === activeInputIndex ? "active" : "",
+    type === "output" && index === currentTrackIndex ? "active" : "",
+  ].filter(Boolean).join(" ");
+  const camera = svgEl("g", { class: classes, "data-label": String(index + 1) });
+  camera.appendChild(svgEl("ellipse", {
+    class: "camera-shadow",
+    cx: projectedCenter.x,
+    cy: projectedCenter.y + 18 * projectedCenter.scale,
+    rx: 18 * projectedCenter.scale,
+    ry: 5 * projectedCenter.scale,
+  }));
+  camera.appendChild(svgEl("polygon", {
+    class: "frustum-face",
+    points: pointsToAttribute(projectedCorners),
+  }));
+  projectedCorners.forEach((corner) => {
+    camera.appendChild(svgEl("line", {
+      class: "frustum-edge",
+      x1: projectedCenter.x,
+      y1: projectedCenter.y,
+      x2: corner.x,
+      y2: corner.y,
+    }));
+  });
+  camera.appendChild(svgEl("circle", {
+    class: "camera-center",
+    cx: projectedCenter.x,
+    cy: projectedCenter.y,
+    r: clamp(5.5 * projectedCenter.scale, 3.8, 8.5),
+  }));
+  const text = svgEl("text", {
+    x: projectedCenter.x + 16 * projectedCenter.scale,
+    y: projectedCenter.y - 14 * projectedCenter.scale,
+  });
   text.textContent = label;
   camera.appendChild(text);
-  return camera;
+
+  return {
+    element: camera,
+    depth: projectedCenter.depth + projectedCorners.reduce((sum, point) => sum + point.depth, 0) / projectedCorners.length,
+  };
 }
 
-function drawCamera(group, point, className, label) {
-  const [x, y] = pointToSvg(point);
-  const camera = buildCameraGlyph(className, label);
-  camera.setAttribute("transform", `translate(${x} ${y})`);
-  group.appendChild(camera);
+function renderTrajectoryLayer() {
+  const layer = svgEl("g", { class: "trajectory-layer" });
+  const projected = demo.trajectory.map(projectPoint);
+  if (projected.length > 1) {
+    layer.appendChild(svgEl("polyline", {
+      class: "trajectory-shadow",
+      points: pointsToAttribute(projected.map((point) => ({ ...point, y: point.y + 4 }))),
+    }));
+    layer.appendChild(svgEl("polyline", {
+      class: "trajectory-line",
+      points: pointsToAttribute(projected),
+    }));
+  }
+  projected.forEach((point, index) => {
+    layer.appendChild(svgEl("circle", {
+      class: `trajectory-knot${index === currentTrackIndex ? " active" : ""}`,
+      cx: point.x,
+      cy: point.y,
+      r: index === currentTrackIndex ? 5 : 3.5,
+    }));
+  });
+  return layer;
+}
+
+function renderRayFanLayer(currentPoint) {
+  const fan = svgEl("g", { class: "ray-fan" });
+  demo.inputViews.forEach((view) => {
+    draw3dLine(fan, currentPoint, view.camera, "ray-line");
+  });
+  return fan;
+}
+
+function getCurrentTrajectoryPoint() {
+  return (
+    demo.trajectory[currentTrackIndex] ||
+    demo.outputViews[currentTrackIndex]?.camera ||
+    fallbackDemo.outputViews[0].camera
+  );
 }
 
 function renderCameraMap() {
   cameraMap.replaceChildren();
   cameraMapPlaceholder.hidden = true;
 
-  cameraMap.appendChild(drawPlaneGrid());
+  const currentPoint = getCurrentTrajectoryPoint();
+  cameraMap.appendChild(drawSceneVolume());
+  cameraMap.appendChild(renderRayFanLayer(currentPoint));
+  cameraMap.appendChild(renderTrajectoryLayer());
 
-  const trajectoryPoints = demo.trajectory.map(pointToSvg);
-  const path = svgEl("polyline", {
-    class: "trajectory-line",
-    points: trajectoryPoints.map(([x, y]) => `${x},${y}`).join(" "),
-  });
-  cameraMap.appendChild(path);
-
-  const fan = svgEl("g", { id: "rayFan", class: "ray-fan" });
-  cameraMap.appendChild(fan);
-
-  const inputGroup = svgEl("g", { id: "inputCameras" });
+  const cameraItems = [];
   demo.inputViews.forEach((view, index) => {
-    drawCamera(inputGroup, view.camera, "input-camera", String(index + 1));
+    cameraItems.push(createFrustum(view, index, "input"));
   });
-  cameraMap.appendChild(inputGroup);
-
-  const outputGroup = svgEl("g", { id: "outputCameras" });
   demo.outputViews.forEach((view, index) => {
-    drawCamera(outputGroup, view.camera, "output-camera", String(index + 1));
+    cameraItems.push(createFrustum(view, index, index === currentTrackIndex ? "current" : "output"));
   });
-  cameraMap.appendChild(outputGroup);
-
-  const currentGroup = buildCameraGlyph("current-camera", "out 1");
-  currentGroup.setAttribute("id", "currentCamera");
-  cameraMap.appendChild(currentGroup);
-  updateTrackPosition(0);
+  cameraItems
+    .sort((a, b) => a.depth - b.depth)
+    .forEach((item) => cameraMap.appendChild(item.element));
 }
 
-function updateRayFan(currentPoint) {
-  const fan = document.getElementById("rayFan");
-  fan.replaceChildren();
-  const [cx, cy] = pointToSvg(currentPoint);
-  demo.inputViews.forEach((view) => {
-    const [ix, iy] = pointToSvg(view.camera);
-    fan.appendChild(svgEl("line", { x1: cx, y1: cy, x2: ix, y2: iy }));
+function setupSpatialMapInteractions() {
+  if (spatialInteractionReady) {
+    return;
+  }
+  spatialInteractionReady = true;
+
+  cameraMap.addEventListener("pointerdown", (event) => {
+    spatialView.isDragging = true;
+    spatialView.lastX = event.clientX;
+    spatialView.lastY = event.clientY;
+    cameraMap.setPointerCapture(event.pointerId);
+  });
+
+  cameraMap.addEventListener("pointermove", (event) => {
+    if (!spatialView.isDragging) {
+      return;
+    }
+    const dx = event.clientX - spatialView.lastX;
+    const dy = event.clientY - spatialView.lastY;
+    spatialView.lastX = event.clientX;
+    spatialView.lastY = event.clientY;
+    spatialView.yaw += dx * 0.008;
+    spatialView.pitch = clamp(spatialView.pitch + dy * 0.006, -1.15, -0.18);
+    renderCameraMap();
+  });
+
+  cameraMap.addEventListener("pointerup", (event) => {
+    spatialView.isDragging = false;
+    cameraMap.releasePointerCapture(event.pointerId);
+  });
+
+  cameraMap.addEventListener("pointercancel", () => {
+    spatialView.isDragging = false;
+  });
+
+  cameraMap.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    const delta = event.deltaY > 0 ? -0.08 : 0.08;
+    spatialView.zoom = clamp(spatialView.zoom + delta, 0.72, 2.1);
+    renderCameraMap();
+  }, { passive: false });
+
+  cameraMap.addEventListener("dblclick", () => {
+    spatialView.yaw = -0.72;
+    spatialView.pitch = -0.56;
+    spatialView.zoom = 1.18;
+    renderCameraMap();
+  });
+
+  cameraMap.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      spatialView.yaw += event.key === "ArrowLeft" ? -0.08 : 0.08;
+    } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      spatialView.pitch = clamp(spatialView.pitch + (event.key === "ArrowUp" ? -0.06 : 0.06), -1.15, -0.18);
+    } else if (event.key === "+" || event.key === "=" || event.key === "-") {
+      spatialView.zoom = clamp(spatialView.zoom + (event.key === "-" ? -0.08 : 0.08), 0.72, 2.1);
+    } else {
+      return;
+    }
+    event.preventDefault();
+    renderCameraMap();
   });
 }
 
 function updateTrackPosition(index) {
   const maxIndex = Math.max(demo.trajectory.length - 1, 0);
   currentTrackIndex = Math.max(0, Math.min(index, maxIndex));
-  const point =
-    demo.trajectory[currentTrackIndex] ||
-    demo.outputViews[currentTrackIndex]?.camera ||
-    fallbackDemo.outputViews[0].camera;
-  const [x, y] = pointToSvg(point);
-  const current = document.getElementById("currentCamera");
-  current.setAttribute("transform", `translate(${x} ${y})`);
-  current.querySelector("text").textContent = `out ${currentTrackIndex + 1}`;
-  updateRayFan(point);
   trackSlider.value = String(currentTrackIndex);
   trackPosition.textContent = `${currentTrackIndex + 1}/${maxIndex + 1}`;
+  renderCameraMap();
   setActiveOutput(currentTrackIndex);
 }
 
 function setActiveInput(index) {
+  activeInputIndex = Math.max(0, Math.min(index, Math.max(demo.inputViews.length - 1, 0)));
   for (const tile of inputGrid.querySelectorAll(".input-view-tile")) {
-    tile.classList.toggle("active", tile.dataset.index === String(index));
+    tile.classList.toggle("active", tile.dataset.index === String(activeInputIndex));
   }
   for (const camera of cameraMap.querySelectorAll(".input-camera")) {
-    camera.classList.toggle("active", camera.dataset.label === String(index + 1));
+    camera.classList.toggle("active", camera.dataset.label === String(activeInputIndex + 1));
   }
 }
 
@@ -341,6 +546,7 @@ async function loadDemo() {
   trackBack.addEventListener("click", () => updateTrackPosition(currentTrackIndex - 1));
   trackForward.addEventListener("click", () => updateTrackPosition(currentTrackIndex + 1));
   video.addEventListener("timeupdate", syncTrackFromVideo);
+  setupSpatialMapInteractions();
 
   await Promise.all([
     renderInputViews(),
@@ -350,7 +556,7 @@ async function loadDemo() {
 
   renderCameraMap();
   setActiveInput(0);
-  setActiveOutput(0);
+  updateTrackPosition(0);
 }
 
 loadDemo();

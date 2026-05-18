@@ -233,7 +233,7 @@ h1 {
 }
 
 .section-heading {
-  margin-bottom: 28px;
+  margin-bottom: 22px;
 }
 
 h2 {
@@ -272,7 +272,7 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 18px 20px;
+  padding: 15px 18px;
   border-bottom: 1px solid var(--line);
   background: #fbfcfd;
 }
@@ -317,9 +317,9 @@ h2 {
 .explorer-layout {
   display: grid;
   align-items: start;
-  grid-template-columns: minmax(280px, 0.86fr) minmax(0, 1.74fr);
-  gap: 18px;
-  padding: 18px;
+  grid-template-columns: minmax(300px, 0.76fr) minmax(0, 1.92fr);
+  gap: 12px;
+  padding: 12px;
 }
 
 .camera-panel,
@@ -334,18 +334,19 @@ h2 {
 
 .camera-panel {
   display: flex;
+  align-self: start;
   min-width: 0;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
+  gap: 10px;
+  padding: 12px;
   background: linear-gradient(180deg, #ffffff 0%, #f6f9fb 100%);
 }
 
 .stage-panel {
   display: grid;
   min-width: 0;
-  gap: 14px;
-  padding: 14px;
+  gap: 12px;
+  padding: 12px;
   background: #f7f8fa;
 }
 
@@ -356,7 +357,7 @@ h2 {
 
 .panel-heading h3 {
   color: var(--text);
-  font-size: 19px;
+  font-size: 18px;
   line-height: 1.25;
 }
 
@@ -365,7 +366,7 @@ h2 {
   align-items: baseline;
   justify-content: space-between;
   gap: 14px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .panel-kicker {
@@ -378,20 +379,49 @@ h2 {
 
 .spatial-map {
   position: relative;
-  min-height: 360px;
+  min-height: 320px;
+  aspect-ratio: 1.32;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
   background:
-    linear-gradient(135deg, rgba(36, 95, 168, 0.08), rgba(11, 117, 100, 0.08)),
+    radial-gradient(circle at 44% 34%, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0) 34%),
+    linear-gradient(135deg, rgba(36, 95, 168, 0.1), rgba(11, 117, 100, 0.11)),
     #f8fafc;
+  cursor: grab;
+  touch-action: none;
+}
+
+.spatial-map:active {
+  cursor: grabbing;
 }
 
 .spatial-map svg {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 360px;
+  min-height: 320px;
+  outline: none;
+}
+
+.spatial-map svg:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(36, 95, 168, 0.42);
+}
+
+.map-action-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  max-width: calc(100% - 20px);
+  padding: 5px 8px;
+  border: 1px solid rgba(139, 159, 176, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.2;
+  pointer-events: none;
 }
 
 .map-placeholder {
@@ -411,81 +441,131 @@ h2 {
 }
 
 .map-floor {
-  fill: rgba(234, 241, 247, 0.82);
-  stroke: #c8d5df;
-  stroke-width: 1.2;
+  fill: rgba(230, 238, 246, 0.82);
+  stroke: rgba(117, 139, 158, 0.42);
+  stroke-width: 1.1;
 }
 
-.map-grid-lines line {
+.map-backdrop {
+  fill: rgba(245, 248, 251, 0.62);
+  stroke: rgba(160, 176, 190, 0.26);
+  stroke-width: 1;
+}
+
+.map-grid-lines .grid-line {
   stroke: rgba(139, 159, 176, 0.34);
   stroke-linecap: round;
   stroke-width: 1.1;
 }
 
+.map-grid-lines .wall-grid-line {
+  stroke: rgba(139, 159, 176, 0.18);
+  stroke-dasharray: 3 7;
+  stroke-linecap: round;
+}
+
+.scene-axes .axis-line {
+  stroke-linecap: round;
+  stroke-width: 2.1;
+}
+
+.axis-x {
+  stroke: rgba(36, 95, 168, 0.42);
+}
+
+.axis-y {
+  stroke: rgba(82, 93, 105, 0.3);
+}
+
+.axis-z {
+  stroke: rgba(11, 117, 100, 0.4);
+}
+
+.trajectory-shadow {
+  fill: none;
+  stroke: rgba(10, 18, 32, 0.14);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 7;
+}
+
 .trajectory-line {
   fill: none;
   stroke: var(--green);
-  stroke-dasharray: 8 10;
+  stroke-dasharray: 8 8;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 4;
+  stroke-width: 4.2;
 }
 
-.ray-fan line {
-  stroke: rgba(36, 95, 168, 0.2);
-  stroke-linecap: round;
+.trajectory-knot {
+  fill: #ffffff;
+  stroke: var(--green);
   stroke-width: 2;
 }
 
-.camera-glyph {
-  transform-box: fill-box;
-  transform-origin: center;
+.trajectory-knot.active {
+  fill: var(--red);
+  stroke: #ffffff;
+  stroke-width: 2.4;
 }
 
-.camera-glyph .pyramid-face,
-.camera-glyph .pyramid-base {
+.ray-fan .ray-line {
+  stroke: rgba(36, 95, 168, 0.22);
+  stroke-dasharray: 4 7;
+  stroke-linecap: round;
+  stroke-width: 2.1;
+}
+
+.camera-frustum {
+  transition: opacity 160ms ease;
+}
+
+.camera-shadow {
+  fill: rgba(10, 18, 32, 0.13);
+}
+
+.frustum-face {
   stroke-linejoin: round;
   stroke-width: 2;
 }
 
-.camera-glyph .pyramid-center {
+.frustum-edge {
   stroke-linecap: round;
-  stroke-width: 1.6;
+  stroke-width: 1.75;
 }
 
-.input-camera .pyramid-left {
-  fill: rgba(36, 95, 168, 0.16);
+.input-camera .frustum-face {
+  fill: rgba(36, 95, 168, 0.17);
   stroke: var(--blue);
 }
 
-.input-camera .pyramid-right,
-.input-camera .pyramid-base {
-  fill: rgba(36, 95, 168, 0.07);
+.input-camera .frustum-edge,
+.input-camera .camera-center {
   stroke: var(--blue);
 }
 
-.input-camera .pyramid-center {
-  stroke: rgba(36, 95, 168, 0.82);
+.input-camera .camera-center {
+  fill: #ffffff;
 }
 
-.output-camera .pyramid-left {
-  fill: rgba(166, 66, 50, 0.16);
+.output-camera .frustum-face {
+  fill: rgba(166, 66, 50, 0.13);
   stroke: var(--red);
 }
 
-.output-camera .pyramid-right,
-.output-camera .pyramid-base {
-  fill: rgba(166, 66, 50, 0.08);
+.output-camera .frustum-edge,
+.output-camera .camera-center {
   stroke: var(--red);
 }
 
-.output-camera .pyramid-center {
-  stroke: rgba(166, 66, 50, 0.82);
+.output-camera .camera-center {
+  fill: #ffffff;
 }
 
-.camera-glyph text {
+.camera-frustum text {
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 850;
   paint-order: stroke;
   stroke: #ffffff;
@@ -501,13 +581,13 @@ h2 {
   fill: var(--red);
 }
 
-.input-camera.active .pyramid-face,
-.input-camera.active .pyramid-base {
+.input-camera.active .frustum-face {
   fill: #fff4f1;
   stroke: var(--red);
 }
 
-.input-camera.active .pyramid-center {
+.input-camera.active .frustum-edge,
+.input-camera.active .camera-center {
   stroke: var(--red);
 }
 
@@ -516,28 +596,34 @@ h2 {
 }
 
 .output-camera {
-  opacity: 0.42;
+  opacity: 0.46;
 }
 
 .output-camera.active {
-  opacity: 0.7;
+  opacity: 0.78;
 }
 
 .current-camera {
-  filter: drop-shadow(0 8px 12px rgba(166, 66, 50, 0.25));
+  opacity: 1;
+  filter: drop-shadow(0 10px 14px rgba(166, 66, 50, 0.28));
 }
 
-.current-camera .pyramid-face,
-.current-camera .pyramid-base {
+.current-camera .frustum-face {
   fill: #fff4f1;
   stroke: var(--red);
   stroke-width: 2.8;
 }
 
+.current-camera .frustum-edge,
+.current-camera .camera-center {
+  stroke: var(--red);
+  stroke-width: 2.4;
+}
+
 .track-controls {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 38px;
-  gap: 8px 10px;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  gap: 6px 8px;
   align-items: center;
 }
 
@@ -555,8 +641,8 @@ h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -580,7 +666,7 @@ h2 {
   justify-content: space-between;
   gap: 10px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -594,9 +680,9 @@ h2 {
 .map-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 12px;
+  gap: 6px 10px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.35;
 }
 
@@ -629,20 +715,22 @@ h2 {
 }
 
 .input-deck {
-  padding: 14px;
+  padding: 12px;
 }
 
 .input-view-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .output-view-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 9px;
-  padding: 12px;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  flex: 1;
+  gap: 8px;
+  padding: 10px;
   background: #f7f9fb;
 }
 
@@ -650,8 +738,8 @@ h2 {
 .output-view-tile {
   display: grid;
   min-width: 0;
-  gap: 7px;
-  padding: 8px;
+  gap: 6px;
+  padding: 7px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -659,6 +747,10 @@ h2 {
   cursor: pointer;
   font: inherit;
   text-align: left;
+}
+
+.output-view-tile {
+  grid-template-rows: minmax(0, 1fr) auto;
 }
 
 .input-view-tile.active,
@@ -672,7 +764,7 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 8.4;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -683,7 +775,8 @@ h2 {
 }
 
 .output-thumb-frame {
-  aspect-ratio: 16 / 7;
+  min-height: 0;
+  aspect-ratio: auto;
 }
 
 .input-thumb-frame.has-media img,
@@ -702,8 +795,8 @@ h2 {
 
 .view-stage {
   display: grid;
-  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
-  gap: 14px;
+  grid-template-columns: minmax(172px, 0.52fr) minmax(0, 1.48fr);
+  gap: 12px;
   align-items: stretch;
 }
 
@@ -719,7 +812,7 @@ h2 {
 .media-frame {
   position: relative;
   display: flex;
-  min-height: 230px;
+  min-height: 210px;
   align-items: center;
   justify-content: center;
   overflow: hidden;
@@ -727,7 +820,7 @@ h2 {
 }
 
 .video-frame {
-  min-height: 430px;
+  min-height: 392px;
   background: var(--ink);
 }
 
@@ -739,7 +832,7 @@ h2 {
 }
 
 .video-frame video {
-  min-height: 430px;
+  min-height: 392px;
   background: var(--ink);
 }
 
@@ -766,9 +859,9 @@ h2 {
 }
 
 figcaption {
-  padding: 12px 14px 14px;
+  padding: 10px 12px 12px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .analysis-stack {
@@ -870,7 +963,12 @@ tbody tr:last-child td {
 
   .spatial-map,
   .spatial-map svg {
-    min-height: 310px;
+    min-height: 300px;
+  }
+
+  .video-frame,
+  .video-frame video {
+    min-height: 340px;
   }
 
 }
@@ -939,7 +1037,7 @@ tbody tr:last-child td {
   }
 
   .generation-explorer {
-    padding: 12px;
+    border-radius: 8px;
   }
 
   .explorer-toolbar {
@@ -952,11 +1050,11 @@ tbody tr:last-child td {
   }
 
   .explorer-layout {
-    padding: 0;
+    padding: 10px;
   }
 
   .track-controls {
-    grid-template-columns: 38px minmax(0, 1fr) 38px;
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
   }
 
   .video-frame,

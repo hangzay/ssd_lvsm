@@ -31,7 +31,7 @@
     }
   ],
   "video": {
-    "src": "",
+    "src": "assets/demo/showcase/rendered_video.mp4",
     "poster": ""
   },
   "trajectory": [
