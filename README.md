@@ -5,7 +5,7 @@
 **Semantic-Spatial Decoupling for feedforward novel view synthesis transformers**
 
 <p>
-  <img alt="arXiv" src="https://img.shields.io/badge/arXiv-coming%20soon-b31b1b">
+  <a href="https://arxiv.org/abs/2605.18599"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2605.18599-b31b1b"></a>
   <a href="https://hangzay.github.io/ssd_lvsm/"><img alt="Project" src="https://img.shields.io/badge/Project%20Page-website-245fa8"></a>
   <a href="https://github.com/hangzay/ssd_lvsm"><img alt="Code" src="https://img.shields.io/badge/Code-GitHub-181717?logo=github"></a>
   <a href="LICENSE.md"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-4c6f91"></a>
@@ -21,6 +21,8 @@
 <p>* Equal Contributions. &dagger; Correspondence Author.</p>
 
 Contact: [yh048172@gmail.com](mailto:yh048172@gmail.com)
+
+Paper: [arXiv:2605.18599](https://arxiv.org/abs/2605.18599)
 
 </div>
 
