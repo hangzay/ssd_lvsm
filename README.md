@@ -22,8 +22,6 @@
 
 Contact: [yh048172@gmail.com](mailto:yh048172@gmail.com)
 
-Paper: [arXiv:2605.18599](https://arxiv.org/abs/2605.18599)
-
 </div>
 
 ## Overview
@@ -130,6 +128,16 @@ bash scripts/eval_objaverse_decoder.sh
 
 Set `training.checkpoint_dir=path_to_checkpoint_or_dir/` and `inference_out_dir=path_to_eval_output/` as command-line overrides when needed. Evaluation writes images, metrics, and optional HTML pages under `inference_out_dir`.
 
-## License and Acknowledgements
+## BibTeX
 
-This repository is released under the MIT License; see [LICENSE.md](LICENSE.md). DINOv3 helper code, Nerfstudio-derived camera utilities, datasets, model weights, rendered assets, and generated supervision caches remain governed by their original licenses and terms. This project also uses DINOv3 and DA3-derived supervision signals for the optional branch-specific training losses.
+```bibtex
+@misc{wu2026resolvingrepresentationambiguityfeedforward,
+      title={Resolving Representation Ambiguity in Feedforward Novel View Synthesis Transformer via Semantic-Spatial Decoupling},
+      author={Yihang Wu and Yihang Sun and Shaofeng Zhang and Zuxuan Wu and Junchi Yan and Xiaosong Jia and Yu-gang Jiang},
+      year={2026},
+      eprint={2605.18599},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2605.18599},
+}
+```
