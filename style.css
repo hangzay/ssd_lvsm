@@ -213,10 +213,11 @@ h1 {
 .action.secondary {
   background: var(--surface);
   color: var(--muted);
-  cursor: default;
+  cursor: pointer;
 }
 
 .action:disabled {
+  cursor: default;
   opacity: 0.72;
 }
 
@@ -906,6 +907,25 @@ figcaption {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
+}
+
+.citation-section {
+  background: #ffffff;
+}
+
+.bibtex-card {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111820;
+}
+
+.bibtex-card pre {
+  margin: 0;
+  padding: 18px 20px;
+  color: #f6f8fb;
+  font: 13px/1.65 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  white-space: pre;
 }
 
 table {
