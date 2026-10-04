@@ -9,7 +9,6 @@
   <a href="https://hangzay.github.io/ssd_lvsm/"><img alt="Project" src="https://img.shields.io/badge/Project%20Page-website-245fa8"></a>
   <a href="https://github.com/hangzay/ssd_lvsm"><img alt="Code" src="https://img.shields.io/badge/Code-GitHub-181717?logo=github"></a>
   <a href="LICENSE.md"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-4c6f91"></a>
-  <img alt="NeuralPS2026" src="https://img.shields.io/badge/NeuralPS2026-6750a4">
 </p>
 
 <p><strong>Yihang Wu<sup>1,2*</sup>, Yihang Sun<sup>3*</sup>, Shaofeng Zhang<sup>4</sup>, Zuxuan Wu<sup>1,2</sup>, Junchi Yan<sup>3&dagger;</sup>, Xiaosong Jia<sup>1,2&dagger;</sup>, Yu-gang Jiang<sup>1,2</sup></strong></p>
@@ -25,6 +24,12 @@ Contact: [yh048172@gmail.com](mailto:yh048172@gmail.com)
 
 </div>
 
+## News
+
+Our paper has been accepted to **NeurIPS 2026**.
+
+[Visual results](#visual-results) · [Results](#controlled-results) · [Installation](#installation) · [Data](#data) · [Training](#training) · [Camera encodings](#camera-encodings) · [Evaluation](#evaluation)
+
 ## Overview
 
 Feedforward novel view synthesis transformers commonly mix RGB appearance tokens and Plucker-ray geometry tokens in a shared latent stream. This coupling can make camera-space structure interfere with appearance representation.
@@ -35,9 +40,13 @@ Semantic-Spatial Decoupling keeps the two information types in coordinated but s
   <img src="docs/assets/intro.png" alt="Semantic-Spatial Decoupling teaser" width="92%">
 </p>
 
-The released code includes decoder-only and encoder-decoder variants, branch-specific training supervision, optional bidirectional modulation, RealEstate10K and Objaverse training entry points, and evaluation scripts.
+The release supports decoder-only and encoder-decoder models on RealEstate10K and Objaverse, with optional modulation and semantic/spatial supervision. Both architectures accept Plucker or raw-raymap inputs; decoder-only also supports PRoPE camera conditioning in attention.
 
-Both architectures support both datasets and Plucker/raw-raymap inputs. Decoder-only also supports PRoPE camera conditioning in attention.
+## Visual Results
+
+The paper's [visualization website](https://anonymous.4open.science/w/supplement-for-rebuttal-47B1/index.html) includes qualitative comparisons on 12 RealEstate10K scenes and 12 Objaverse objects, with three novel views per example, alongside rendering videos and feature analysis.
+
+[Qualitative comparisons](https://anonymous.4open.science/w/supplement-for-rebuttal-47B1/index.html#qualitative) · [Rendering videos](https://anonymous.4open.science/w/supplement-for-rebuttal-47B1/index.html#video-results) · [Wide-angle examples](https://anonymous.4open.science/w/supplement-for-rebuttal-47B1/index.html#wide-range) · [Artifact analysis](https://anonymous.4open.science/w/supplement-for-rebuttal-47B1/index.html#artifacts)
 
 ## Controlled Results
 
@@ -58,6 +67,9 @@ The manuscript also reports component results for all four dataset/architecture 
 | Encoder-decoder | RE10K | 24.84 / 0.789 / 0.170 | **25.31 / 0.806 / 0.154** |
 | Encoder-decoder | Objaverse | 24.16 / 0.816 / 0.137 | **24.61 / 0.834 / 0.124** |
 
+<details>
+<summary>Camera encodings: PRoPE and raw raymaps</summary>
+
 Camera-encoding comparisons on RE10K use the same 50K protocol. P denotes Plucker rays `[o × d, d]`; R denotes raw raymaps `[o, d]`. Params are in millions.
 
 | Method | Params | PSNR ↑ | SSIM ↑ | LPIPS ↓ |
@@ -69,7 +81,12 @@ Camera-encoding comparisons on RE10K use the same 50K protocol. P denotes Plucke
 | Decouple (P) | 50.1 | 26.70 | 0.851 | 0.138 |
 | Ours (P, full) | 57.2 | **27.21** | **0.869** | **0.125** |
 
-Additional RE10K experiments use **decoupling + modulation without auxiliary supervision**, rather than the full design. The 512×512 models are fine-tuned from their corresponding 256×256, 50K checkpoints. iLRM uses its separate matched 5K protocol (2 context / 4 target views).
+</details>
+
+<details>
+<summary>Resolution, backbone scaling, and iLRM transfer</summary>
+
+These RE10K experiments use **decoupling + modulation without auxiliary supervision**. The 512×512 models are fine-tuned from their corresponding 256×256, 50K checkpoints. iLRM uses its separate matched 5K protocol (2 context / 4 target views).
 
 | Experiment | Baseline PSNR / SSIM / LPIPS | Ours PSNR / SSIM / LPIPS |
 | --- | --- | --- |
@@ -77,6 +94,8 @@ Additional RE10K experiments use **decoupling + modulation without auxiliary sup
 | Decoder-only, 512×512, 8K fine-tuning | 27.47 / 0.8707 / 0.1770 | **28.28 / 0.8833 / 0.1682** |
 | Decoder-only, 512×512, 10K fine-tuning | 27.45 / 0.8712 / 0.1759 | **28.19 / 0.8834 / 0.1681** |
 | iLRM transfer, 256×256, 5K | 22.42 / 0.764 / 0.276 | **23.15 / 0.789 / 0.245** |
+
+</details>
 
 <details>
 <summary>External reconstruction comparisons from the manuscript</summary>
@@ -99,9 +118,11 @@ These comparisons match data, view sampling, resolution, hardware, batch size, u
 
 ## Installation
 
-Create the environment and install dependencies from the project root:
+Clone the repository, create the environment, and install dependencies:
 
 ```bash
+git clone https://github.com/hangzay/ssd_lvsm.git
+cd ssd_lvsm
 conda create -n decoupled-nvs python=3.11
 conda activate decoupled-nvs
 pip install -r requirements.txt
@@ -164,11 +185,13 @@ Run the full RealEstate10K decoder-only model with:
 bash scripts/train_re10k_decoder_full.sh
 ```
 
-Override layer count and per-GPU batch size directly when launching:
+For example, train the decouple-only variant by overriding the full-model defaults:
 
 ```bash
 torchrun --standalone --nproc_per_node=4 train.py --config configs/re10k_decoder_only.yaml \
-  model.transformer.n_layer=12 training.batch_size_per_gpu=4
+  model.transformer.decouple=true model.transformer.film=false \
+  training.dino=false training.spatial_supervision=false \
+  training.checkpoint_dir=./experiments/checkpoints/re10k_decouple_only
 ```
 
 Other released training entry points:
@@ -195,7 +218,7 @@ torchrun --standalone --nproc_per_node=4 train.py --config configs/re10k_decoder
   training.checkpoint_dir=./experiments/checkpoints/re10k_raymap_baseline
 ```
 
-For the matched decouple-only Raymap experiment, set `model.transformer.decouple=true` and use a new checkpoint directory. For the PRoPE baseline, keep all four method switches false and set `model.camera_encoding.ray_encoding=plucker` and `model.camera_encoding.attention_encoding=prope`. The adapted source is [PRoPE's official PyTorch implementation](https://github.com/liruilong940607/prope/blob/main/prope/torch.py); source and license details are listed below.
+For the matched decouple-only Raymap experiment, set `model.transformer.decouple=true` and use a new checkpoint directory. For the PRoPE baseline, keep all four method switches false and set `model.camera_encoding.ray_encoding=plucker` and `model.camera_encoding.attention_encoding=prope`. The adapted source is [PRoPE's official PyTorch implementation](https://github.com/liruilong940607/prope/blob/main/prope/torch.py); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for provenance and license details.
 
 ## Evaluation
 
@@ -229,16 +252,7 @@ torchrun --standalone --nproc_per_node=1 inference.py --config configs/objaverse
 
 Evaluation writes RGB images, PSNR/SSIM/LPIPS metrics, and an HTML browser under `inference_out_dir`. Set `inference.render_video=true` for camera-path videos.
 
-## Acknowledgements
-
-| Component | Source repository | Use in this release |
-| --- | --- | --- |
-| LVSM | [Haian-Jin/LVSM](https://github.com/Haian-Jin/LVSM) | Backbone, training/evaluation, and data-processing foundation; extended with semantic-spatial decoupling. |
-| PRoPE | [liruilong940607/prope](https://github.com/liruilong940607/prope) | Projective attention transforms and its GTA control, adapted in `model/camera_conditioning.py`. |
-| DINOv3 | [facebookresearch/dinov3](https://github.com/facebookresearch/dinov3) | Separately loaded, frozen semantic teacher; source and weights are not bundled. |
-| Depth Anything 3 | [ByteDance-Seed/Depth-Anything-3](https://github.com/ByteDance-Seed/Depth-Anything-3) | External depth/camera cache generation for spatial supervision. |
-
-Camera utilities retain their Nerfstudio/MultiNeRF source notices. The raw-raymap switch is implemented locally as `[o, d]`. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for file-level provenance and retained upstream licenses. Project-authored code uses [MIT](LICENSE.md); upstream components retain their respective terms.
+Source provenance and upstream license terms are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## BibTeX
 
