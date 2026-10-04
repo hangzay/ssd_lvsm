@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
 torchrun --nproc_per_node 1 --nnodes 1 \
   --rdzv_id 18639 --rdzv_backend c10d --rdzv_endpoint localhost:29507 \
   inference.py --config configs/objaverse_decoder_only.yaml \
@@ -11,4 +14,5 @@ torchrun --nproc_per_node 1 --nnodes 1 \
   inference.if_inference=true \
   inference.compute_metrics=true \
   inference.render_video=false \
-  inference_out_dir=./experiments/eval/objaverse_decoder_only
+  inference_out_dir=./experiments/eval/objaverse_decoder_only \
+  "$@"

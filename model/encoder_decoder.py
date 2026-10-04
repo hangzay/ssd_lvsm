@@ -12,6 +12,7 @@ from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
 
 from utils import camera_utils, data_utils
+from .camera_conditioning import encode_rays
 from .loss import LossComputer
 from .transformer import DecoupledTransformerBlock, init_weights
 
@@ -28,9 +29,25 @@ class DecoupledNVSEncoderDecoder(nn.Module):
         self.config = config
         self.logger = logger or self._get_default_logger()
         self.process_data = data_utils.ProcessData(config)
+        transformer_cfg = self.config.model.transformer
+        self.decouple = bool(transformer_cfg.get("decouple", True))
+        self.film = bool(transformer_cfg.get("film", True))
+        self.use_dino = bool(self.config.training.get("dino", True))
+        self.use_spatial_supervision = bool(self.config.training.get("spatial_supervision", True))
+        camera_cfg = self.config.model.get("camera_encoding", {})
+        self.ray_encoding = camera_cfg.get("ray_encoding", "plucker")
+        self.attention_encoding = camera_cfg.get("attention_encoding", "none")
+        if self.attention_encoding != "none":
+            raise ValueError(
+                "PRoPE/GTA is defined for per-view token sequences and is not directly "
+                "applicable to encoder-decoder LVSM's camera-less scene latents. "
+                "Use ray_encoding=raymap for the encoder-decoder camera-encoding control."
+            )
+        if not self.decouple and (self.film or self.use_dino or self.use_spatial_supervision):
+            raise ValueError("film, dino, and spatial_supervision require decouple=true")
         self._init_tokenizers()
         self._init_transformer()
-        self.loss_computer = LossComputer(config)
+        self.loss_computer = LossComputer(config) if not config.inference.if_inference else nn.Identity()
         self._init_irepa_head()
         self._init_dino_teacher()
 
@@ -55,31 +72,35 @@ class DecoupledNVSEncoderDecoder(nn.Module):
     def _init_tokenizers(self):
         self.d_model = self.config.model.transformer.d
         self.d_half = self.d_model // 2
-        self.image_tokenizer = self._create_tokenizer(
-            self.config.model.image_tokenizer.in_channels,
-            self.config.model.image_tokenizer.patch_size,
-            self.d_half,
-        )
-        self.pose_tokenizer = self._create_tokenizer(
-            self.config.model.pose_tokenizer.in_channels,
-            self.config.model.pose_tokenizer.patch_size,
-            self.d_half,
-        )
-        self.target_pose_tokenizer = self._create_tokenizer(
-            self.config.model.target_pose_tokenizer.in_channels,
-            self.config.model.target_pose_tokenizer.patch_size,
-            self.d_half,
-        )
+        assert self.d_model % 2 == 0
 
-        patch_size = self.config.model.target_pose_tokenizer.patch_size
-        self.decoder_norm_semantic = nn.LayerNorm(self.d_half, bias=False)
-        self.decoder_norm_spatial = nn.LayerNorm(self.d_half, bias=False)
+        image_cfg = self.config.model.image_tokenizer
+        pose_cfg = self.config.model.pose_tokenizer
+        target_pose_cfg = self.config.model.target_pose_tokenizer
+        if self.decouple:
+            self.image_tokenizer = self._create_tokenizer(image_cfg.in_channels, image_cfg.patch_size, self.d_half)
+            self.pose_tokenizer = self._create_tokenizer(pose_cfg.in_channels, pose_cfg.patch_size, self.d_half)
+            self.target_pose_tokenizer = self._create_tokenizer(
+                target_pose_cfg.in_channels, target_pose_cfg.patch_size, self.d_half
+            )
+            self.decoder_norm_i = nn.LayerNorm(self.d_half, bias=False)
+            self.decoder_norm_p = nn.LayerNorm(self.d_half, bias=False)
+        else:
+            self.image_tokenizer = self._create_tokenizer(
+                image_cfg.in_channels + pose_cfg.in_channels, image_cfg.patch_size, self.d_model
+            )
+            self.target_pose_tokenizer = self._create_tokenizer(
+                target_pose_cfg.in_channels, target_pose_cfg.patch_size, self.d_model
+            )
+            self.decoder_norm = nn.LayerNorm(self.d_model, bias=False)
+
+        patch_size = target_pose_cfg.patch_size
         self.decoder_linear = nn.Linear(self.d_model, patch_size * patch_size * 3, bias=False)
         self.decoder_sigmoid = nn.Sigmoid()
         self.decoder_linear.apply(init_weights)
 
-        image_size = self.config.model.image_tokenizer.image_size
-        patch = self.config.model.image_tokenizer.patch_size
+        image_size = image_cfg.image_size
+        patch = image_cfg.patch_size
         self.grid_h = image_size // patch
         self.grid_w = self.grid_h
         self.tokens_per_view = self.grid_h * self.grid_w
@@ -89,8 +110,9 @@ class DecoupledNVSEncoderDecoder(nn.Module):
         return DecoupledTransformerBlock(
             cfg.d,
             cfg.d_head,
-            use_mod=cfg.get("use_mod", True),
-            mod_scale_init=MOD_SCALE_INIT,
+            decouple=self.decouple,
+            film=self.film,
+            film_scale_init=cfg.get("film_scale_init", MOD_SCALE_INIT),
         )
 
     def _init_transformer(self):
@@ -104,13 +126,17 @@ class DecoupledNVSEncoderDecoder(nn.Module):
             for idx, block in enumerate(blocks):
                 std = 0.02 / (2 * (idx + 1)) ** 0.5
                 block.apply(lambda module, init_std=std: init_weights(module, init_std))
-                block.reset_mod_parameters(MOD_SCALE_INIT)
+                block.reset_film_parameters(cfg.get("film_scale_init", MOD_SCALE_INIT))
 
         self.transformer_input_layernorm_decoder = nn.LayerNorm(cfg.d, bias=False)
-        self.logger.info(f"Initialized encoder-decoder decoupled NVS transformer: {cfg.encoder_n_layer}+{cfg.decoder_n_layer} layers.")
+        self.logger.info(
+            f"Initialized encoder-decoder LVSM: {cfg.encoder_n_layer}+{cfg.decoder_n_layer} layers, "
+            f"decouple={self.decouple}, film={self.film}, dino={self.use_dino}, spatial_supervision={self.use_spatial_supervision}, "
+            f"ray_encoding={self.ray_encoding}."
+        )
 
     def _init_irepa_head(self):
-        if self.config.inference.if_inference or not self.config.training.use_irepa:
+        if self.config.inference.if_inference or not self.use_dino:
             return
         self.dino_gamma = self.config.training.get("dino_gamma", 0.60)
         self.dino_proj_head = nn.Conv2d(self.d_half, self.config.model.irepa.feature_dim, kernel_size=3, padding=1)
@@ -118,30 +144,26 @@ class DecoupledNVSEncoderDecoder(nn.Module):
 
     def _init_dino_teacher(self):
         self.dino_teacher = None
-        if self.config.inference.if_inference or not self.config.training.use_irepa:
+        if self.config.inference.if_inference or not self.use_dino:
             return
-        self.dino_layer = self.config.model.irepa.dino_layer
-        self.dino_feature_dim = self.config.model.irepa.feature_dim
-        self.dino_image_size = self.config.model.irepa.get("image_size", 224)
-        try:
-            from transformers import AutoModel
+        from utils.dino_utils import load_dino_teacher
 
-            model = AutoModel.from_pretrained(DINO_VITB16_MODEL_ID)
-            model.eval()
-            for param in model.parameters():
-                param.requires_grad = False
-            self.dino_teacher = model.to(next(self.parameters()).device)
-            self.dino_h = self.dino_image_size // 16
-            self.dino_w = self.dino_h
-        except Exception:
-            traceback.print_exc()
-            self.dino_teacher = None
+        cfg = self.config.model.irepa
+        self.dino_layer = cfg.dino_layer
+        self.dino_feature_dim = cfg.feature_dim
+        self.dino_image_size = cfg.get("image_size", 448)
+        self.dino_teacher = load_dino_teacher(
+            "vitb16", cfg.weight_path, repo=cfg.get("repo", "facebookresearch/dinov3")
+        ).to(next(self.parameters()).device)
+        self.dino_h = self.dino_image_size // 16
+        self.dino_w = self.dino_h
 
     def train(self, mode=True):
         super().train(mode)
         self.loss_computer.eval()
         if self.dino_teacher is not None:
             self.dino_teacher.eval()
+        return self
 
     def pass_layers(self, transformer_blocks, input_tokens, gradient_checkpoint=False, checkpoint_every=1, capture_dino_layer=None, capture_spatial_layer=None):
         dino_feat = None
@@ -169,15 +191,8 @@ class DecoupledNVSEncoderDecoder(nn.Module):
                 spatial_feat = input_tokens.clone()
         return input_tokens, dino_feat, spatial_feat
 
-    def get_posed_input(self, images=None, ray_o=None, ray_d=None, method="default_plucker"):
-        if method == "custom_plucker":
-            o_dot_d = torch.sum(-ray_o * ray_d, dim=2, keepdim=True)
-            pose_cond = torch.cat([ray_d, ray_o + o_dot_d * ray_d], dim=2)
-        elif method == "aug_plucker":
-            o_dot_d = torch.sum(-ray_o * ray_d, dim=2, keepdim=True)
-            pose_cond = torch.cat([torch.cross(ray_o, ray_d, dim=2), ray_d, ray_o + o_dot_d * ray_d], dim=2)
-        else:
-            pose_cond = torch.cat([torch.cross(ray_o, ray_d, dim=2), ray_d], dim=2)
+    def get_posed_input(self, images=None, ray_o=None, ray_d=None):
+        pose_cond = encode_rays(ray_o, ray_d, self.ray_encoding)
         if images is None:
             batch_size, num_views, _, height, width = pose_cond.shape
             image = torch.zeros((batch_size, num_views, 3, height, width), device=pose_cond.device, dtype=pose_cond.dtype)
@@ -186,9 +201,13 @@ class DecoupledNVSEncoderDecoder(nn.Module):
         return image, pose_cond
 
     def _decode_image_tokens(self, tokens):
-        semantic = self.decoder_norm_semantic(tokens[..., : self.d_half])
-        spatial = self.decoder_norm_spatial(tokens[..., self.d_half :])
-        return self.decoder_sigmoid(self.decoder_linear(torch.cat([semantic, spatial], dim=-1)))
+        if self.decouple:
+            semantic = self.decoder_norm_i(tokens[..., : self.d_half])
+            spatial = self.decoder_norm_p(tokens[..., self.d_half :])
+            tokens = torch.cat([semantic, spatial], dim=-1)
+        else:
+            tokens = self.decoder_norm(tokens)
+        return self.decoder_sigmoid(self.decoder_linear(tokens))
 
     def _align_views_tensor(self, per_view_tensor, num_input_views):
         batch_size, num_views = per_view_tensor.shape[:2]
@@ -203,23 +222,29 @@ class DecoupledNVSEncoderDecoder(nn.Module):
         if self.dino_teacher is None:
             return None
         batch_size, num_views = dino_images.shape[:2]
-        x = dino_images.reshape(batch_size * num_views, 3, self.dino_image_size, self.dino_image_size)
-        outputs = self.dino_teacher(pixel_values=x, output_hidden_states=True, return_dict=True)
-        inter = outputs.hidden_states[self.dino_layer + 1]
-        if hasattr(self.dino_teacher, "norm"):
-            inter = self.dino_teacher.norm(inter)
-        inter = inter[:, -self.dino_h * self.dino_w :]
-        grid = inter.view(batch_size * num_views, self.dino_h, self.dino_w, self.dino_feature_dim).permute(0, 3, 1, 2).contiguous()
+        x = dino_images.reshape(
+            batch_size * num_views, 3, self.dino_image_size, self.dino_image_size
+        )
+        inter = self.dino_teacher.get_intermediate_layers(x=x, n=[self.dino_layer])[0]
+        batch_views, num_tokens, feature_dim = inter.shape
+        expected_tokens = self.dino_h * self.dino_w
+        if num_tokens != expected_tokens:
+            raise RuntimeError(f"DINO token count {num_tokens} != expected {expected_tokens}")
+        grid = inter.view(
+            batch_views, self.dino_h, self.dino_w, feature_dim
+        ).permute(0, 3, 1, 2).contiguous()
         interp = F.interpolate(
             grid,
             size=(self.grid_h, self.grid_w),
             mode=self.config.model.irepa.get("interpolate_mode", "bilinear"),
             align_corners=False,
         )
-        return interp.permute(0, 2, 3, 1).contiguous().view(batch_size, num_views, self.tokens_per_view, self.dino_feature_dim).to(torch.float32)
+        return interp.permute(0, 2, 3, 1).contiguous().view(
+            batch_size, num_views, self.tokens_per_view, feature_dim
+        ).to(torch.float32)
 
     def get_irepa_features(self, student_features, target_dino_features):
-        if self.config.inference.if_inference or not self.config.training.use_irepa or student_features is None:
+        if self.config.inference.if_inference or not self.use_dino or student_features is None:
             return {"student_features": None, "teacher_features": None}
         semantic = student_features[..., : self.d_half]
         mean_token = semantic.mean(dim=1, keepdim=True)
@@ -239,11 +264,14 @@ class DecoupledNVSEncoderDecoder(nn.Module):
         batch_size, num_input_views = input.image.shape[:2]
         num_target_views = target.ray_o.shape[1]
         num_latents = self.config.model.transformer.n_latent_vectors
-        use_irepa = (not self.config.inference.if_inference) and self.config.training.use_irepa
-        use_spatial = (not self.config.inference.if_inference) and self.config.training.use_spatial
+        use_dino = (not self.config.inference.if_inference) and self.use_dino
+        use_spatial_supervision = (not self.config.inference.if_inference) and self.use_spatial_supervision
 
         input_images, input_pose = self.get_posed_input(images=input.image, ray_o=input.ray_o, ray_d=input.ray_d)
-        input_tokens = torch.cat([self.image_tokenizer(input_images), self.pose_tokenizer(input_pose)], dim=-1)
+        if self.decouple:
+            input_tokens = torch.cat([self.image_tokenizer(input_images), self.pose_tokenizer(input_pose)], dim=-1)
+        else:
+            input_tokens = self.image_tokenizer(torch.cat([input_images, input_pose], dim=2))
         _, num_patches, _ = input_tokens.shape
         input_tokens = input_tokens.reshape(batch_size, num_input_views * num_patches, self.d_model)
 
@@ -256,14 +284,23 @@ class DecoupledNVSEncoderDecoder(nn.Module):
             encoder_input,
             gradient_checkpoint=use_checkpoint,
             checkpoint_every=checkpoint_every,
-            capture_spatial_layer=self.config.training.get("spatial_layer", 9) if use_spatial else None,
+            capture_spatial_layer=self.config.training.get("spatial_layer", 9) if use_spatial_supervision else None,
         )
         latent_tokens, _ = encoder_output.split([num_latents, num_input_views * num_patches], dim=1)
 
         _, target_pose = self.get_posed_input(ray_o=target.ray_o, ray_d=target.ray_d)
-        target_pose_half = self.target_pose_tokenizer(target_pose)
-        target_semantic = torch.zeros(batch_size * num_target_views, num_patches, self.d_half, device=target_pose_half.device, dtype=target_pose_half.dtype)
-        target_tokens = torch.cat([target_semantic, target_pose_half], dim=-1)
+        target_pose_tokens = self.target_pose_tokenizer(target_pose)
+        if self.decouple:
+            target_semantic = torch.zeros(
+                batch_size * num_target_views,
+                num_patches,
+                self.d_half,
+                device=target_pose_tokens.device,
+                dtype=target_pose_tokens.dtype,
+            )
+            target_tokens = torch.cat([target_semantic, target_pose_tokens], dim=-1)
+        else:
+            target_tokens = target_pose_tokens
         repeated_latent = repeat(latent_tokens, "b nl d -> (b vt) nl d", vt=num_target_views)
         decoder_input = self.transformer_input_layernorm_decoder(torch.cat([target_tokens, repeated_latent], dim=1))
         decoder_output, dino_feat, dec_spatial = self.pass_layers(
@@ -271,8 +308,8 @@ class DecoupledNVSEncoderDecoder(nn.Module):
             decoder_input,
             gradient_checkpoint=use_checkpoint,
             checkpoint_every=checkpoint_every,
-            capture_dino_layer=self.config.model.irepa.decoder_depth if use_irepa else None,
-            capture_spatial_layer=self.config.training.get("spatial_layer", 9) if use_spatial else None,
+            capture_dino_layer=self.config.model.irepa.decoder_depth if use_dino else None,
+            capture_spatial_layer=self.config.training.get("spatial_layer", 9) if use_spatial_supervision else None,
         )
 
         target_image_tokens, _ = decoder_output.split([num_patches, num_latents], dim=1)
@@ -291,9 +328,9 @@ class DecoupledNVSEncoderDecoder(nn.Module):
         )
         out = {"decoder_rgb": rendered}
 
-        if use_spatial:
+        if use_spatial_supervision:
             if enc_spatial is None or dec_spatial is None:
-                raise RuntimeError("use_spatial=True but no spatial feature was captured.")
+                raise RuntimeError("spatial_supervision=True but no spatial feature was captured.")
             enc_features = enc_spatial[:, num_latents:, self.d_half :].view(batch_size, num_input_views, self.grid_h, self.grid_w, self.d_half)
             enc_features = enc_features.repeat_interleave(num_target_views, dim=0)
             dec_features = dec_spatial[:, :num_patches, self.d_half :].view(batch_size * num_target_views, 1, self.grid_h, self.grid_w, self.d_half)
@@ -309,7 +346,7 @@ class DecoupledNVSEncoderDecoder(nn.Module):
             }
 
         irepa_features = {"student_features": None, "teacher_features": None}
-        if use_irepa and "dino_images" in target and dino_feat is not None:
+        if use_dino and "dino_images" in target and dino_feat is not None:
             target_dino = self._compute_dino_teacher_features(target.dino_images)
             if target_dino is not None:
                 target_dino = target_dino.reshape(batch_size * num_target_views, num_patches, self.dino_feature_dim)
@@ -337,7 +374,10 @@ class DecoupledNVSEncoderDecoder(nn.Module):
         num_latents = self.config.model.transformer.n_latent_vectors
         device = input.image.device
         input_images, input_pose = self.get_posed_input(images=input.image, ray_o=input.ray_o, ray_d=input.ray_d)
-        input_tokens = torch.cat([self.image_tokenizer(input_images), self.pose_tokenizer(input_pose)], dim=-1)
+        if self.decouple:
+            input_tokens = torch.cat([self.image_tokenizer(input_images), self.pose_tokenizer(input_pose)], dim=-1)
+        else:
+            input_tokens = self.image_tokenizer(torch.cat([input_images, input_pose], dim=2))
         _, num_patches, _ = input_tokens.shape
         input_tokens = input_tokens.reshape(batch_size, num_input_views * num_patches, self.d_model)
         latent = self.scene_latents.expand(batch_size, -1, -1)
@@ -373,15 +413,26 @@ class DecoupledNVSEncoderDecoder(nn.Module):
         all_fxfycxcy[:, :, 3] = all_intrinsics[:, :, 1, 2]
         ray_o, ray_d = self.process_data.compute_rays(all_c2ws, all_fxfycxcy, h=input.image.shape[-2], w=input.image.shape[-1], device=device)
         _, target_pose = self.get_posed_input(ray_o=ray_o, ray_d=ray_d)
-        target_pose_half = self.target_pose_tokenizer(target_pose).reshape(batch_size, num_frames * num_patches, self.d_half)
+        target_pose_tokens = self.target_pose_tokenizer(target_pose).reshape(
+            batch_size, num_frames * num_patches, self.d_half if self.decouple else self.d_model
+        )
 
         video = []
         patch_size = self.config.model.target_pose_tokenizer.patch_size
         for start in range(0, num_frames, 4):
             cur_views = min(4, num_frames - start)
-            cur_pose = rearrange(target_pose_half[:, start * num_patches : (start + cur_views) * num_patches], "b (v p) dh -> (b v) p dh", v=cur_views)
-            target_semantic = torch.zeros(batch_size * cur_views, num_patches, self.d_half, device=device, dtype=cur_pose.dtype)
-            cur_target = torch.cat([target_semantic, cur_pose], dim=-1)
+            cur_pose = rearrange(
+                target_pose_tokens[:, start * num_patches : (start + cur_views) * num_patches],
+                "b (v p) d -> (b v) p d",
+                v=cur_views,
+            )
+            if self.decouple:
+                target_semantic = torch.zeros(
+                    batch_size * cur_views, num_patches, self.d_half, device=device, dtype=cur_pose.dtype
+                )
+                cur_target = torch.cat([target_semantic, cur_pose], dim=-1)
+            else:
+                cur_target = cur_pose
             repeated_latent = repeat(latent_tokens, "b nl d -> (b cv) nl d", cv=cur_views)
             decoder_input = self.transformer_input_layernorm_decoder(torch.cat([cur_target, repeated_latent], dim=1))
             decoder_output, _, _ = self.pass_layers(self.transformer_decoder, decoder_input)
@@ -414,6 +465,6 @@ class DecoupledNVSEncoderDecoder(nn.Module):
             traceback.print_exc()
             print(f"Failed to load {ckpt_path}")
             return None
-        self.load_state_dict(checkpoint["model"], strict=True)
+        self.load_state_dict(checkpoint["model"], strict=False)
         print(f"[load_ckpt] Loaded {os.path.basename(ckpt_path)}")
         return 0

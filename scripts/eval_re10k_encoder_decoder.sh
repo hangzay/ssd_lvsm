@@ -1,6 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
 torchrun --nproc_per_node 1 --nnodes 1 \
   --rdzv_id 18642 --rdzv_backend c10d --rdzv_endpoint localhost:29509 \
   inference.py --config configs/re10k_encoder_decoder.yaml \
+  training.dataset_path=path_to_re10k/test/eval_list.txt \
   training.batch_size_per_gpu=4 \
   training.target_has_input=false \
   training.square_crop=true \
@@ -11,4 +15,5 @@ torchrun --nproc_per_node 1 --nnodes 1 \
   inference.if_inference=true \
   inference.compute_metrics=true \
   inference.render_video=false \
-  inference_out_dir=./experiments/eval/re10k_encoder_decoder
+  inference_out_dir=./experiments/eval/re10k_encoder_decoder \
+  "$@"

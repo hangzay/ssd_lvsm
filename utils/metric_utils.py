@@ -1,4 +1,4 @@
-﻿import torch
+import torch
 from torch import Tensor
 from jaxtyping import Float
 from einops import reduce, rearrange
@@ -24,18 +24,18 @@ def compute_psnr(
 ) -> Float[Tensor, "batch"]:
     """
     Compute Peak Signal-to-Noise Ratio between ground truth and predicted images.
-    
+
     Args:
         ground_truth: Images with shape [batch, channel, height, width], values in [0, 1]
         predicted: Images with shape [batch, channel, height, width], values in [0, 1]
-        
+
     Returns:
         PSNR values for each image in the batch
     """
     ground_truth = torch.clamp(ground_truth, 0, 1)
     predicted = torch.clamp(predicted, 0, 1)
     mse = reduce((ground_truth - predicted) ** 2, "b c h w -> b", "mean")
-    return -10 * torch.log10(mse) 
+    return -10 * torch.log10(mse)
 
 
 
@@ -52,7 +52,7 @@ def compute_lpips(
 ) -> Float[Tensor, "batch"]:
     """
     Compute Learned Perceptual Image Patch Similarity between images.
-    
+
     Args:
         ground_truth: Images with shape [batch, channel, height, width]
         predicted: Images with shape [batch, channel, height, width]
@@ -83,21 +83,21 @@ def compute_ssim(
 ) -> Float[Tensor, " batch"]:
     """
     Compute Structural Similarity Index between images.
-    
+
     Args:
         ground_truth: Images with shape [batch, channel, height, width], values in [0, 1]
         predicted: Images with shape [batch, channel, height, width], values in [0, 1]
-        
+
     Returns:
         SSIM values for each image in the batch (higher is better)
     """
     ssim_values= []
-    
+
     for gt, pred in zip(ground_truth, predicted):
         # Move to CPU and convert to numpy
         gt_np = gt.detach().cpu().numpy()
         pred_np = pred.detach().cpu().numpy()
-        
+
         # Calculate SSIM
         ssim = structural_similarity(
             gt_np,
@@ -108,7 +108,7 @@ def compute_ssim(
             data_range=1.0,
         )
         ssim_values.append(ssim)
-    
+
     # Convert back to tensor on the same device as input
     return torch.tensor(ssim_values, dtype=predicted.dtype, device=predicted.device)
 
@@ -117,33 +117,33 @@ def compute_ssim(
 @torch.no_grad()
 def export_results(
     result: edict,
-    out_dir: str, 
+    out_dir: str,
     compute_metrics: bool = False
 ):
     """
     Save results including images and optional metrics and videos.
-    
+
     Args:
         result: EasyDict containing input, target, and rendered images, and optionally video frames
         out_dir: Directory to save the evaluation results
         compute_metrics: Whether to compute and save metrics
     """
     os.makedirs(out_dir, exist_ok=True)
-    
+
     input_data, target_data = result.input, result.target
-    
+
     for batch_idx in range(input_data.image.size(0)):
         uid = input_data.index[batch_idx, 0, -1].item()
         scene_name = input_data.scene_name[batch_idx]
         sample_dir = os.path.join(out_dir, f"{uid:06d}")
         os.makedirs(sample_dir, exist_ok=True)
-        
+
         # Get target view indices
         target_indices = target_data.index[batch_idx, :, 0].cpu().numpy()
 
         # Save images
         _save_images(result, batch_idx, sample_dir)
-        
+
         # Compute and save metrics if requested
         if compute_metrics:
             _save_metrics(
@@ -153,33 +153,75 @@ def export_results(
                 sample_dir,
                 scene_name
             )
-        
+
         # Save video if available
         if hasattr(result, "video_rendering"):
             _save_video(result.video_rendering[batch_idx], sample_dir)
 
+
+@torch.no_grad()
+def visualize_intermediate_results(out_dir: str, result: edict) -> None:
+    """Save a compact training-batch input/target/render montage."""
+    os.makedirs(out_dir, exist_ok=True)
+    input_data, target_data = result.input, result.target
+
+    if result.render is not None:
+        target = target_data.image.to(torch.float32)
+        render = result.render.to(torch.float32)
+        comparison = torch.cat((target, render), dim=-1).detach().cpu()
+        comparison = rearrange(comparison, "b v c h w -> (b h) (v w) c")
+        comparison = (
+            comparison.clamp(0.0, 1.0).numpy() * 255.0
+        ).astype(np.uint8)
+        uids = [
+            int(target_data.index[batch_idx, 0, -1].item())
+            for batch_idx in range(target_data.index.size(0))
+        ]
+        uid_range = f"{uids[0]:08d}_{uids[-1]:08d}"
+        Image.fromarray(comparison).save(
+            os.path.join(out_dir, f"supervision_{uid_range}.jpg")
+        )
+        with open(os.path.join(out_dir, "uids.txt"), "w", encoding="utf-8") as file:
+            file.write("_".join(f"{uid:08d}" for uid in uids))
+
+    inputs = input_data.image.to(torch.float32).detach().cpu()
+    inputs = rearrange(inputs, "b v c h w -> (b h) (v w) c")
+    inputs = (inputs.clamp(0.0, 1.0).numpy() * 255.0).astype(np.uint8)
+    input_uids = [
+        int(input_data.index[batch_idx, 0, -1].item())
+        for batch_idx in range(input_data.index.size(0))
+    ]
+    uid_range = f"{input_uids[0]:08d}_{input_uids[-1]:08d}"
+    Image.fromarray(inputs).save(
+        os.path.join(out_dir, f"input_{uid_range}.jpg")
+    )
+
+
 def _save_images(result, batch_idx, out_dir):
     """Save visualization images."""
     # Save input image
-    input_img = result.input.image[batch_idx]
+    input_img = result.input.image[batch_idx].to(torch.float32)
     input_img = rearrange(input_img, "v c h w -> h (v w) c")
     input_img = (input_img.cpu().numpy() * 255.0).clip(0.0, 255.0).astype(np.uint8)
     Image.fromarray(input_img).save(os.path.join(out_dir, "input.png"))
 
     # Save GT vs prediction side-by-side
     comparison = torch.cat(
-        (result.target.image[batch_idx], result.render[batch_idx]), 
-        dim=2
+        (
+            result.target.image[batch_idx].to(torch.float32),
+            result.render[batch_idx].to(torch.float32),
+        ),
+        dim=2,
     ).detach().cpu()
     comparison = rearrange(comparison, "v c h w -> h (v w) c")
     comparison = (comparison.numpy() * 255.0).clip(0.0, 255.0).astype(np.uint8)
     Image.fromarray(comparison).save(os.path.join(out_dir, "gt_vs_pred.png"))
-    
+
 
 def _save_metrics(target, prediction, view_indices, out_dir, scene_name):
     target = target.to(torch.float32)
     prediction = prediction.to(torch.float32)
-    
+
     psnr_values = compute_psnr(target, prediction)
     lpips_values = compute_lpips(target, prediction)
     ssim_values = compute_ssim(target, prediction)
@@ -193,12 +235,12 @@ def _save_metrics(target, prediction, view_indices, out_dir, scene_name):
         },
         "per_view": []
     }
-    
+
     for i, view_idx in enumerate(view_indices):
         metrics["per_view"].append({
             "view": int(view_idx), "psnr": float(psnr_values[i]), "lpips": float(lpips_values[i]), "ssim": float(ssim_values[i])
         })
-    
+
     # Save metrics to a single JSON file
     with open(os.path.join(out_dir, "metrics.json"), "w") as f:
         json.dump(metrics, f, indent=2)
@@ -212,8 +254,8 @@ def _save_video(frames, out_dir):
     frames = np.ascontiguousarray(np.array(frames.to(torch.float32)))
     frames = rearrange(frames, "v c h w -> v h w c")
     data_utils.create_video_from_frames(
-        frames, 
-        f"{out_dir}/rendered_video.mp4", 
+        frames,
+        f"{out_dir}/rendered_video.mp4",
         framerate=30
     )
 
@@ -231,15 +273,15 @@ def summarize_evaluation(evaluation_folder, avg_sample_latency=None):
 
     metrics = {}
     valid_subfolders = []
-    
+
     for subfolder in subfolders:
         json_path = os.path.join(subfolder, "metrics.json")
         if not os.path.exists(json_path):
             print(f"!!! Metrics file not found in {subfolder}, skipping...")
             continue
-            
+
         valid_subfolders.append(subfolder)
-        
+
         with open(json_path, "r") as f:
             try:
                 data = json.load(f)
@@ -259,17 +301,17 @@ def summarize_evaluation(evaluation_folder, avg_sample_latency=None):
     with open(csv_file, "w") as f:
         header = ["Index"] + list(metrics.keys())
         f.write(",".join(header) + "\n")
-        
+
         for i, subfolder in enumerate(valid_subfolders):
             basename = os.path.basename(subfolder)
             values = [str(metric_values[i]) for metric_values in metrics.values()]
             f.write(f"{basename},{','.join(values)}\n")
-        
+
         f.write("\n")
-        
+
         averages = [str(sum(values) / len(values)) for values in metrics.values()]
         f.write(f"average,{','.join(averages)}\n")
-    
+
     print(f"Summary written to {csv_file}")
     print(f"Average: {','.join(averages)}")
 

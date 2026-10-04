@@ -1,5 +1,7 @@
 # Copyright (c) 2026 Yihang Wu.
 
+import re
+
 import torch
 from transformers import (
     get_constant_schedule_with_warmup,
@@ -45,7 +47,7 @@ def create_optimizer(model, weight_decay, learning_rate, betas):
         {"params": nodecay_params, "weight_decay": 0.0},
     ]
     optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, fused=True)
-    
+
     if dist.get_rank() == 0:
         def get_module_name(name):
             parts = name.split(".")
@@ -58,11 +60,11 @@ def create_optimizer(model, weight_decay, learning_rate, betas):
         trainable_params = sum(p.numel() for p in optimized_param_dict.values())
         optim_module_names = sorted(set(get_module_name(name) for name in optimized_param_dict.keys()))
         frozen_module_names = sorted(set(get_module_name(name) for name in set(all_param_dict.keys()) - set(optimized_param_dict.keys())))
-        
+
         print(f"Total parameters: {format_number(total_params)}, Trainable parameters: {format_number(trainable_params)}")
         print(f"Optimized parameters: {optim_module_names}")
         print(f"Frozen parameters: {frozen_module_names}")
-        
+
     return optimizer, optimized_param_dict, all_param_dict
 
 def create_lr_scheduler(optimizer, param_update_steps, warm_up_steps, scheduler_type='cosine'):
@@ -90,6 +92,42 @@ def find_checkpoints(load_path):
             ckpt_paths = []
     return ckpt_paths
 
+
+def remap_legacy_lvsm_state_dict(model_state, target_state):
+    """Map legacy baseline-only parameter names to the consolidated model."""
+    remapped_state = dict(model_state)
+    renamed = {}
+    fixed_aliases = {
+        "image_token_decoder.0.weight": "decoder_norm.weight",
+        "image_token_decoder.1.weight": "decoder_linear.weight",
+    }
+
+    for source_key in list(remapped_state):
+        target_key = fixed_aliases.get(source_key)
+        if target_key is None:
+            match = re.fullmatch(r"transformer_blocks\.(\d+)\.norm([12])\.weight", source_key)
+            if match is not None:
+                target_key = (
+                    f"transformer_blocks.{match.group(1)}."
+                    f"norm_{match.group(2)}.weight"
+                )
+        if target_key is None or target_key not in target_state:
+            continue
+        if target_key in remapped_state:
+            raise RuntimeError(
+                f"Checkpoint contains both legacy '{source_key}' and current "
+                f"'{target_key}' keys."
+            )
+        if remapped_state[source_key].shape != target_state[target_key].shape:
+            raise RuntimeError(
+                f"Cannot remap '{source_key}' to '{target_key}': checkpoint "
+                f"shape={tuple(remapped_state[source_key].shape)}, target "
+                f"shape={tuple(target_state[target_key].shape)}."
+            )
+        remapped_state[target_key] = remapped_state.pop(source_key)
+        renamed[source_key] = target_key
+
+    return remapped_state, renamed
 
 
 def auto_resume_job(
@@ -129,12 +167,31 @@ def auto_resume_job(
         print_rank0(f"Failed to load {ckpt_path}, we will start from scratch")
         return optimizer, lr_scheduler, forward_pass_step, param_update_step
 
-    # Load model weights
-    if isinstance(model, DDP):
-        status = model.module.load_state_dict(checkpoint['model'], strict=False)
-    else:
-        status = model.load_state_dict(checkpoint['model'], strict=False)
-    print_rank0(f"Loaded model from {os.path.abspath(ckpt_path)}, the status is {status}")
+    # Teacher/loss helpers are external frozen state, not trainable checkpoint state.
+    ignored_prefixes = ("dino_teacher.", "loss_computer.")
+    model_state = {
+        key: value
+        for key, value in checkpoint["model"].items()
+        if not key.startswith(ignored_prefixes)
+    }
+    target_model = model.module if isinstance(model, DDP) else model
+    model_state, renamed = remap_legacy_lvsm_state_dict(
+        model_state,
+        target_model.state_dict(),
+    )
+    status = target_model.load_state_dict(model_state, strict=False)
+    core_missing = [key for key in status.missing_keys if not key.startswith(ignored_prefixes)]
+    core_unexpected = [key for key in status.unexpected_keys if not key.startswith(ignored_prefixes)]
+    print_rank0(
+        f"Loaded model from {os.path.abspath(ckpt_path)} | "
+        f"legacy_keys_remapped={len(renamed)} | "
+        f"core_missing={core_missing} | core_unexpected={core_unexpected}"
+    )
+    if renamed and (core_missing or core_unexpected):
+        raise RuntimeError(
+            "Legacy checkpoint remapping left unresolved core model keys: "
+            f"missing={core_missing}, unexpected={core_unexpected}"
+        )
 
     # resume training state
     if not reset_training_state:
@@ -147,6 +204,5 @@ def auto_resume_job(
         except:
             traceback.print_exc()
             print_rank0(f"Failed to load optimizer and lr_scheduler from {ckpt_path}")
-    
-    return optimizer, lr_scheduler, forward_pass_step, param_update_step
 
+    return optimizer, lr_scheduler, forward_pass_step, param_update_step

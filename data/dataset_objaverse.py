@@ -1,13 +1,15 @@
 import glob
+import gzip
 import json
 import os
 import random
 from math import radians, tan
+from pathlib import Path
 
 import numpy as np
 import PIL
 import torch
-from dinov3.dinov3.data.transforms import make_classification_eval_transform
+from utils.dino_utils import make_dino_eval_transform
 
 from data.dataset_scene import Dataset as SceneDataset
 
@@ -27,30 +29,46 @@ class Dataset(SceneDataset):
         if self.inference:
             dataset_path = config.inference.test_dataset_path
             self.objaverse_root = config.inference.test_objaverse_root
-            self.da3_cache_root = config.inference.get("test_da3_cache_root", config.training.da3_cache_root)
+            self.depth_camera_cache_root = config.inference.get("test_depth_camera_cache_root", config.training.depth_camera_cache_root)
         else:
             dataset_path = config.training.dataset_path
             self.objaverse_root = config.training.objaverse_root
-            self.da3_cache_root = config.training.da3_cache_root
+            self.depth_camera_cache_root = config.training.depth_camera_cache_root
 
         self.fovy_deg = config.training.get("objaverse_fovy_deg", 49.1)
         self.umeyama_centre_thresh = config.training.get("umeyama_centre_thresh", 0.15)
 
         try:
-            with open(dataset_path, "r") as f:
-                self.all_scene_paths = [line.strip() for line in f if line.strip()]
+            if str(dataset_path).endswith(".json.gz"):
+                with gzip.open(dataset_path, "rt") as f:
+                    object_paths = json.load(f)
+                self.all_scene_paths = [
+                    f"{Path(glb_path).parent.name}/{object_id}"
+                    for object_id, glb_path in object_paths.items()
+                ]
+            else:
+                with open(dataset_path, "r") as f:
+                    self.all_scene_paths = [line.strip() for line in f if line.strip()]
         except Exception as exc:
             print(f"Error reading dataset paths from '{dataset_path}'")
             raise exc
+        if not self.inference:
+            excluded_scene_list = config.training.get("excluded_scene_list", None)
+            if excluded_scene_list:
+                with open(excluded_scene_list, "r") as f:
+                    excluded_scenes = {line.strip() for line in f if line.strip()}
+                self.all_scene_paths = [
+                    scene_id for scene_id in self.all_scene_paths if scene_id not in excluded_scenes
+                ]
 
-        self.use_irepa = (not self.inference) and config.training.use_irepa
-        self.use_spatial = (not self.inference) and config.training.use_spatial
+        self.use_dino = (not self.inference) and config.training.dino
+        self.use_spatial_supervision = (not self.inference) and config.training.spatial_supervision
 
         self._dino_transform = None
-        if self.use_irepa:
+        if self.use_dino:
             dino_image_size = config.model.irepa.get("image_size", 224)
             dino_resize_size = int(256 * dino_image_size / 224)
-            self._dino_transform = make_classification_eval_transform(
+            self._dino_transform = make_dino_eval_transform(
                 resize_size=dino_resize_size,
                 crop_size=dino_image_size,
             )
@@ -127,12 +145,12 @@ class Dataset(SceneDataset):
 
         images_list = []
         intrinsics_np = np.zeros((len(frames_chosen), 4), dtype=np.float32)
-        dino_images = [] if self.use_irepa else None
+        dino_images = [] if self.use_dino else None
 
         for idx, (frame, image_path) in enumerate(zip(frames_chosen, image_paths_chosen)):
             image = PIL.Image.open(image_path).convert("RGB")
             original_w, original_h = image.size
-            if self.use_irepa:
+            if self.use_dino:
                 dino_images.append(self._dino_transform(image))
 
             resize_w = int(resize_h / original_h * original_w)
@@ -162,7 +180,7 @@ class Dataset(SceneDataset):
         w2cs = np.stack([np.array(frame["w2c"], dtype=np.float32) for frame in frames_chosen])
         c2ws = torch.from_numpy(np.linalg.inv(w2cs).astype(np.float32))
 
-        if self.use_irepa:
+        if self.use_dino:
             return images, intrinsics, c2ws, torch.stack(dino_images, dim=0)
         return images, intrinsics, c2ws
 
@@ -203,7 +221,7 @@ class Dataset(SceneDataset):
 
         frames_chosen = [frames[idx] for idx in image_indices]
         image_paths_chosen = [frames[idx]["_image_path"] for idx in image_indices]
-        if self.use_irepa:
+        if self.use_dino:
             input_images, input_intrinsics, input_c2ws, dino_images = self.preprocess_frames(frames_chosen, image_paths_chosen)
         else:
             input_images, input_intrinsics, input_c2ws = self.preprocess_frames(frames_chosen, image_paths_chosen)
@@ -220,7 +238,7 @@ class Dataset(SceneDataset):
             "scene_name": scene_id,
         }
 
-        if self.use_spatial:
+        if self.use_spatial_supervision:
             num_views = input_intrinsics.shape[0]
             intrinsics_matrix = torch.zeros(num_views, 3, 3, dtype=input_intrinsics.dtype)
             intrinsics_matrix[:, 0, 0] = input_intrinsics[:, 0]
@@ -248,6 +266,6 @@ class Dataset(SceneDataset):
             out["pointmap_mask"] = pointmap_mask_t
             out["spatial_w2c"] = torch.from_numpy(spatial_w2c).float()
 
-        if self.use_irepa:
+        if self.use_dino:
             out["dino_images"] = dino_images
         return out

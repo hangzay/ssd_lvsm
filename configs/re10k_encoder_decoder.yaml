@@ -12,74 +12,80 @@ model:
     image_size: 256
     patch_size: 8
     in_channels: 6
+  camera_encoding:
+    ray_encoding: plucker
+    attention_encoding: none
+    prope_freq_base: 100.0
+    prope_freq_scale: 1.0
   transformer:
     d: 768
     d_head: 64
     encoder_n_layer: 12
     decoder_n_layer: 12
     n_latent_vectors: 3072
+    decouple: true
+    film: true
+    film_scale_init: 1.0
   irepa:
     decoder_depth: 3
     dino_layer: 7
     feature_dim: 768
     image_size: 448
     interpolate_mode: bilinear
-
+    weight_path: path_to_dinov3_weights/dinov3-vitb16-pretrain-lvd1689m.pth
+    repo: facebookresearch/dinov3
 training:
   amp_dtype: bf16
   api_key_path: ./configs/api_keys.yaml
-  batch_size_per_gpu: 8
+  batch_size_per_gpu: 4
   beta1: 0.9
   beta2: 0.95
   allowed_gradnorm_factor: 5
   center_crop: true
   scene_scale_factor: 1.35
-  checkpoint_dir: ./experiments/checkpoints/re10k_encoder_decoder
-  checkpoint_every: 2000
-  dataset_name: data.dataset_scene.Dataset
-  dataset_path: path_to_re10k_processed/train/full_list.txt
-  da3_cache_root: path_to_re10k_da3_cache/
+  checkpoint_every: 0
+  eval_every: 0
   grad_accum_steps: 1
   grad_checkpoint_every: 1
   grad_clip_norm: 5.0
   scheduler_type: constant
   l2_loss_weight: 1.0
   lpips_loss_weight: 0.0
-  perceptual_loss_weight: 0.5
+  dino: true
   dino_loss_weight: 0.5
-  dino_gamma: 0.60
-  spatial_loss_weight: 0.5
-  spatial_temperature: 0.1
-  spatial_gamma: 1.0
-  spatial_alpha: 0.2
-  spatial_min_valid: 100
+  dino_gamma: 0.6
   spatial_layer: 9
   lr: 0.0004
   train_steps: 50000
-  num_input_views: 2
-  num_target_views: 6
-  num_views: 8
   num_threads: 8
-  num_workers: 16
-  prefetch_factor: 32
+  num_workers: 8
+  prefetch_factor: 4
   print_every: 20
+  vis_every: 1000
   square_crop: true
   target_has_input: true
   use_amp: true
   use_rel_pose: false
   use_tf32: true
+  wandb_log_every: 50
+  wandb_project: SSD-LVSM
+  weight_decay: 0.05
+  checkpoint_dir: ./experiments/checkpoints/re10k_encoder_decoder
+  dataset_name: data.dataset_scene.Dataset
+  dataset_path: path_to_re10k/train/full_list.txt
+  perceptual_loss_weight: 0.5
+  num_input_views: 2
+  num_target_views: 6
+  num_views: 8
+  warmup: 3000
   view_selector:
     max_frame_dist: 192
     min_frame_dist: 25
-  wandb_project: DecoupledNVS
   wandb_exp_name: re10k_encoder_decoder
-  wandb_log_every: 50
-  use_irepa: true
-  use_spatial: true
-  warmup: 3000
-  weight_decay: 0.05
-  eval_every: 0
-
+  spatial_correspondence_loss_weight: 0.5
+  spatial_correspondence_min_valid: 100
+  spatial_supervision: true
+  depth_camera_cache_root: path_to_depth_camera_cache/re10k
 inference:
   if_inference: false
   compute_metrics: false

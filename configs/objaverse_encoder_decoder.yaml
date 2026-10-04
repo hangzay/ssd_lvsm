@@ -1,5 +1,5 @@
 model:
-  class_name: model.decoder_only.DecoupledNVSDecoder
+  class_name: model.encoder_decoder.DecoupledNVSEncoderDecoder
   image_tokenizer:
     image_size: 256
     patch_size: 8
@@ -20,7 +20,9 @@ model:
   transformer:
     d: 768
     d_head: 64
-    n_layer: 12
+    encoder_n_layer: 12
+    decoder_n_layer: 12
+    n_latent_vectors: 3072
     decouple: true
     film: true
     film_scale_init: 1.0
@@ -68,29 +70,35 @@ training:
   wandb_log_every: 50
   wandb_project: SSD-LVSM
   weight_decay: 0.05
-  checkpoint_dir: ./experiments/checkpoints/re10k_decoder_only
-  dataset_name: data.dataset_scene.Dataset
-  dataset_path: path_to_re10k/train/full_list.txt
-  perceptual_loss_weight: 0.5
-  num_input_views: 2
-  num_target_views: 6
-  num_views: 8
-  warmup: 3000
+  checkpoint_dir: ./experiments/checkpoints/objaverse_encoder_decoder
+  dataset_name: data.dataset_objaverse.Dataset
+  dataset_path: path_to_objaverse/object-paths.json.gz
+  excluded_scene_list: ./data/evaluation_objaverse_100_seed777.txt
+  objaverse_root: path_to_objaverse
+  objaverse_fovy_deg: 49.1
+  perceptual_loss_weight: 1.0
+  num_input_views: 4
+  num_target_views: 8
+  num_views: 12
+  warmup: 2500
+  view_window_frames: 16
   view_selector:
-    max_frame_dist: 192
-    min_frame_dist: 25
-  wandb_exp_name: re10k_decoder_only
+    max_frame_dist: 23
+    min_frame_dist: 2
+  wandb_exp_name: objaverse_encoder_decoder
   spatial_correspondence_loss_weight: 0.5
-  spatial_correspondence_min_valid: 100
+  spatial_correspondence_min_valid: 50
   spatial_supervision: true
-  depth_camera_cache_root: path_to_depth_camera_cache/re10k
+  depth_camera_cache_root: path_to_depth_camera_cache/objaverse
 inference:
   if_inference: false
   compute_metrics: false
-  view_idx_file_path: ./data/evaluation_index_re10k.json
+  view_idx_file_path: ./data/evaluation_index_objaverse_100_seed777.json
   render_video: false
   render_video_config:
     traj_type: interpolate
     num_frames: 60
     loop_video: true
     order_poses: false
+  test_dataset_path: ./data/evaluation_objaverse_100_seed777.txt
+  test_objaverse_root: path_to_objaverse

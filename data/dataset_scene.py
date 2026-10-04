@@ -11,7 +11,7 @@ import PIL
 import torch
 import torch.nn.functional as F
 import zarr
-from dinov3.dinov3.data.transforms import make_classification_eval_transform
+from utils.dino_utils import make_dino_eval_transform
 from torch.utils.data import Dataset
 
 from utils.pose_utils import align_poses_umeyama
@@ -61,15 +61,15 @@ class Dataset(Dataset):
             raise exc
 
         self.inference = self.config.inference.get("if_inference", False)
-        self.use_irepa = (not self.inference) and self.config.training.use_irepa
-        self.use_spatial = (not self.inference) and self.config.training.use_spatial
-        self.da3_cache_root = self.config.training.da3_cache_root
+        self.use_dino = (not self.inference) and self.config.training.dino
+        self.use_spatial_supervision = (not self.inference) and self.config.training.spatial_supervision
+        self.depth_camera_cache_root = self.config.training.depth_camera_cache_root
 
         self._dino_transform = None
-        if self.use_irepa:
+        if self.use_dino:
             dino_image_size = self.config.model.irepa.get("image_size", 224)
             dino_resize_size = int(256 * dino_image_size / 224)
-            self._dino_transform = make_classification_eval_transform(
+            self._dino_transform = make_dino_eval_transform(
                 resize_size=dino_resize_size,
                 crop_size=dino_image_size,
             )
@@ -90,7 +90,7 @@ class Dataset(Dataset):
 
     def _get_da3_handles(self, scene_name: str):
         if scene_name not in self._zarr_handles:
-            scene_dir = os.path.join(self.da3_cache_root, scene_name)
+            scene_dir = os.path.join(self.depth_camera_cache_root, scene_name)
             depth_z = zarr.open(os.path.join(scene_dir, "depth.zarr"), mode="r")
             pose_z = zarr.open(os.path.join(scene_dir, "camera_pose.zarr"), mode="r")
             intr_z = zarr.open(os.path.join(scene_dir, "camera_intrinsics.zarr"), mode="r")
@@ -126,7 +126,7 @@ class Dataset(Dataset):
         resize_h = self.config.model.image_tokenizer.image_size
         patch_size = self.config.model.image_tokenizer.patch_size
         square_crop = self.config.training.get("square_crop", False)
-        need_dino = self.use_irepa
+        need_dino = self.use_dino
 
         images_list = []
         intrinsics_np = np.zeros((len(frames_chosen), 4), dtype=np.float32)
@@ -241,7 +241,7 @@ class Dataset(Dataset):
 
         image_paths_chosen = [frames[idx]["image_path"] for idx in image_indices]
         frames_chosen = [frames[idx] for idx in image_indices]
-        if self.use_irepa:
+        if self.use_dino:
             input_images, input_intrinsics, input_c2ws, dino_images = self.preprocess_frames(frames_chosen, image_paths_chosen)
         else:
             input_images, input_intrinsics, input_c2ws = self.preprocess_frames(frames_chosen, image_paths_chosen)
@@ -258,7 +258,7 @@ class Dataset(Dataset):
             "scene_name": scene_name,
         }
 
-        if self.use_spatial:
+        if self.use_spatial_supervision:
             num_views = input_intrinsics.shape[0]
             intrinsics_matrix = torch.zeros(num_views, 3, 3, dtype=input_intrinsics.dtype)
             intrinsics_matrix[:, 0, 0] = input_intrinsics[:, 0]
@@ -279,6 +279,6 @@ class Dataset(Dataset):
             out["pointmap_mask"] = pointmap_mask_t
             out["spatial_w2c"] = torch.from_numpy(spatial_w2c).float()
 
-        if self.use_irepa:
+        if self.use_dino:
             out["dino_images"] = dino_images
         return out

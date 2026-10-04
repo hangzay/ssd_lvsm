@@ -79,28 +79,22 @@ def build_correspondence_map(projected_coords, depth_in_target, valid_projection
     return corr_map, corr_mask
 
 
-class SpatialConsistencyLoss(nn.Module):
+class SpatialCorrespondenceLoss(nn.Module):
     """Cross-view cosine consistency loss for the decoupled spatial branch."""
 
     def __init__(
         self,
-        temperature: float = 0.1,
-        gamma: float = 1.0,
-        alpha: float = 0.2,
         num_input_views: int = 3,
         min_valid_correspondences: int = 100,
     ):
         super().__init__()
-        self.temperature = temperature
-        self.gamma = gamma
-        self.alpha = alpha
         self.num_input_views = num_input_views
         self.min_valid_correspondences = min_valid_correspondences
 
     def compute_loss(self, out: dict):
         spatial_features = out.get("spatial_features")
         if spatial_features is None:
-            raise ValueError("spatial_features is required when use_spatial=True.")
+            raise ValueError("spatial_features is required when spatial_supervision=True.")
 
         pointmap = out["gt_point"]["pts3d"]
         pointmap_mask = out["gt_point"]["valid_mask"]

@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from easydict import EasyDict as edict
 from torchvision.models import vgg19
 
-from model.loss_api import SpatialConsistencyLoss
+from model.spatial_loss import SpatialCorrespondenceLoss
 
 
 class PerceptualLoss(nn.Module):
@@ -77,13 +77,10 @@ class LossComputer(nn.Module):
                 self.lpips_loss_module = self._freeze(lpips.LPIPS(net="vgg"))
         if config.training.perceptual_loss_weight > 0.0:
             self.perceptual_loss_module = self._freeze(PerceptualLoss())
-        if config.training.use_spatial and config.training.spatial_loss_weight > 0.0:
-            self.spatial_loss_module = SpatialConsistencyLoss(
-                temperature=config.training.get("spatial_temperature", 0.1),
-                gamma=config.training.get("spatial_gamma", 1.0),
-                alpha=config.training.get("spatial_alpha", 0.2),
+        if config.training.spatial_supervision and config.training.spatial_correspondence_loss_weight > 0.0:
+            self.spatial_correspondence_loss_module = SpatialCorrespondenceLoss(
                 num_input_views=config.training.num_input_views,
-                min_valid_correspondences=config.training.get("spatial_min_valid", 100),
+                min_valid_correspondences=config.training.get("spatial_correspondence_min_valid", 100),
             )
 
     @staticmethod
@@ -104,6 +101,11 @@ class LossComputer(nn.Module):
             return torch.tensor(0.0, device=device)
         if student_features.shape != teacher_features.shape:
             raise ValueError(f"DINO feature shape mismatch: student={student_features.shape}, teacher={teacher_features.shape}")
+        # DINO extraction runs under torch.inference_mode(). Convert its output at
+        # the loss boundary so autograd may save it while differentiating the student.
+        if torch.is_inference(teacher_features):
+            teacher_features = teacher_features.clone()
+        teacher_features = teacher_features.detach()
         return self.mean_flat(F.smooth_l1_loss(student_features, teacher_features, reduction="none")).mean()
 
     def compute_rgb_losses(self, rendering, target):
@@ -135,19 +137,19 @@ class LossComputer(nn.Module):
         l2_loss, psnr, lpips_loss, perceptual_loss = self.compute_rgb_losses(rendering, target)
 
         dino_loss = torch.tensor(0.0, device=device)
-        if self.config.training.use_irepa and self.config.training.dino_loss_weight > 0.0:
+        if self.config.training.dino and self.config.training.dino_loss_weight > 0.0:
             dino_loss = self.compute_dino_loss(irepa_features, device)
 
-        spatial_loss = torch.tensor(0.0, device=device)
-        if self.config.training.use_spatial and self.config.training.spatial_loss_weight > 0.0:
-            spatial_loss, _ = self.spatial_loss_module.compute_loss(out)
+        spatial_correspondence_loss = torch.tensor(0.0, device=device)
+        if self.config.training.spatial_supervision and self.config.training.spatial_correspondence_loss_weight > 0.0:
+            spatial_correspondence_loss, _ = self.spatial_correspondence_loss_module.compute_loss(out)
 
         loss = (
             self.config.training.l2_loss_weight * l2_loss
             + self.config.training.lpips_loss_weight * lpips_loss
             + self.config.training.perceptual_loss_weight * perceptual_loss
             + self.config.training.dino_loss_weight * dino_loss
-            + self.config.training.spatial_loss_weight * spatial_loss
+            + self.config.training.spatial_correspondence_loss_weight * spatial_correspondence_loss
         )
 
         metrics = edict(loss=loss, psnr=psnr, l2_loss=l2_loss)
@@ -155,8 +157,8 @@ class LossComputer(nn.Module):
             metrics.lpips_loss = lpips_loss
         if self.config.training.perceptual_loss_weight > 0.0:
             metrics.perceptual_loss = perceptual_loss
-        if self.config.training.use_irepa:
+        if self.config.training.dino:
             metrics.dino_loss = dino_loss
-        if self.config.training.use_spatial:
-            metrics.spatial_loss = spatial_loss
+        if self.config.training.spatial_supervision:
+            metrics.spatial_correspondence_loss = spatial_correspondence_loss
         return metrics

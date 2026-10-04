@@ -189,8 +189,8 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="train", choices=["train", "test"])
     parser.add_argument("--chunk_size", type=int, default=10)
     parser.add_argument("--num_processes", type=int, default=32)
-    parser.add_argument("--output_dir", type=str, default='/share/phoenix/nfs06/S9/hj453/DATA/re10k/')
-    parser.add_argument("--base_path", type=str, default='/share/phoenix/nfs06/S9/hj453/DATA/re10k_raw/')
+    parser.add_argument("--output_dir", type=str, required=True)
+    parser.add_argument("--base_path", type=str, required=True)
     
     args = parser.parse_args()
     # Example usage
@@ -198,8 +198,7 @@ if __name__ == "__main__":
     input_dir = os.path.join(args.base_path, cur_mode)
     # output_dir = os.path.join('./', 'preprocessed_data', cur_mode)
     output_dir = os.path.join(args.output_dir, cur_mode)
-    # Process test data only
-    logging.info("Starting test data processing...")
+    logging.info("Starting %s data processing...", cur_mode)
     process_directory(input_dir, output_dir, chunk_size=args.chunk_size, num_processes=args.num_processes)  
     logging.info("Processing completed!") 
     search_list_dir = os.path.join(args.output_dir, cur_mode, 'metadata')

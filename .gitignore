@@ -208,3 +208,27 @@ __marimo__/
 
 # Local credentials
 configs/api_keys.yaml
+
+# Local research assets and release preparation
+.env
+.env.*
+!.env.example
+wandb/
+experiments/
+checkpoints/
+outputs/
+results/
+metric_checkpoint/
+teacher_model/
+re10k/
+objaverse-da3/
+hf-objaverse-v1/
+path_to_*/
+*.pt
+*.pth
+*.ckpt
+*.torch
+*.zarr/
+SKILL.md
+/Semantic_Spatial_Register_Tokens___NeurLPS2026.pdf
+nips2026/

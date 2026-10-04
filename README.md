@@ -1,143 +1,133 @@
-<div align="center">
-
 # Resolving Representation Ambiguity in Feedforward Novel View Synthesis Transformer via Semantic-Spatial Decoupling
 
-**Semantic-Spatial Decoupling for feedforward novel view synthesis transformers**
+[Paper](https://arxiv.org/abs/2605.18599) · [Project page](https://hangzay.github.io/ssd_lvsm/) · [Experiment settings](BASELINES.md)
 
-<p>
-  <a href="https://arxiv.org/abs/2605.18599"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2605.18599-b31b1b"></a>
-  <a href="https://hangzay.github.io/ssd_lvsm/"><img alt="Project" src="https://img.shields.io/badge/Project%20Page-website-245fa8"></a>
-  <a href="https://github.com/hangzay/ssd_lvsm"><img alt="Code" src="https://img.shields.io/badge/Code-GitHub-181717?logo=github"></a>
-  <a href="LICENSE.md"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-4c6f91"></a>
-</p>
-
-<p><strong>Yihang Wu<sup>1,2*</sup>, Yihang Sun<sup>3*</sup>, Shaofeng Zhang<sup>4</sup>, Zuxuan Wu<sup>1,2</sup>, Junchi Yan<sup>3&dagger;</sup>, Xiaosong Jia<sup>1,2&dagger;</sup>, Yu-gang Jiang<sup>1,2</sup></strong></p>
-<p>
-  <sup>1</sup> Institute of Trustworthy Embodied Artificial Intelligence (TEAI), Fudan University<br>
-  <sup>2</sup> Shanghai Key Laboratory of Multimodal Embodied AI<br>
-  <sup>3</sup> Sch. of Artificial Intelligence &amp; Sch. of Computer Science, Shanghai Jiao Tong University<br>
-  <sup>4</sup> University of Science and Technology of China
-</p>
-<p>* Equal Contributions. &dagger; Correspondence Author.</p>
-
-Contact: [yh048172@gmail.com](mailto:yh048172@gmail.com)
-
-</div>
-
-## Overview
-
-Feedforward novel view synthesis transformers commonly mix RGB appearance tokens and Plucker-ray geometry tokens in a shared latent stream. This coupling can make camera-space structure interfere with appearance representation.
-
-Semantic-Spatial Decoupling keeps the two information types in coordinated but separate branches. RGB patch tokens form the semantic branch, Plucker-ray patch tokens form the spatial branch, shared Q/K attention preserves routing, and branch-specific values preserve heterogeneous feature updates.
-
-<p align="center">
-  <img src="docs/assets/intro.png" alt="Semantic-Spatial Decoupling teaser" width="92%">
-</p>
-
-The released code includes decoder-only and encoder-decoder variants, branch-specific training supervision, optional bidirectional modulation, RealEstate10K and Objaverse training entry points, and evaluation scripts.
-
-## Controlled Results
-
-These are controlled reimplementation results under matched data splits, view sampling, 256x256 resolution, 50K training steps, and fixed training budgets. They are intended to isolate the effect of semantic-spatial decoupling, not to compare against official large-scale LVSM checkpoints.
-
-| Architecture | Dataset | Baseline PSNR | Ours PSNR | Baseline LPIPS | Ours LPIPS |
-| --- | --- | ---: | ---: | ---: | ---: |
-| Decoder-only | RE10K | 26.10 | **27.21** | 0.144 | **0.125** |
-| Decoder-only | Objaverse | 23.75 | **26.46** | 0.150 | **0.101** |
-| Encoder-decoder | RE10K | 24.06 | **25.31** | 0.206 | **0.154** |
+Semantic-Spatial Decoupling separates RGB and camera-ray features into two branches, with shared full-token Q/K attention and independent values, normalization, and FFNs. Optional bidirectional FiLM, DINOv3 semantic supervision, and geometric correspondence supervision complete the full model.
 
 ## Installation
 
-Create the environment and install dependencies from the project root:
-
 ```bash
-conda create -n decoupled-nvs python=3.11
-conda activate decoupled-nvs
+conda create -n sslvsm python=3.11
+conda activate sslvsm
 pip install -r requirements.txt
 ```
 
-The code expects CUDA, distributed `torchrun`, and `xformers` memory-efficient attention. Prepare `configs/api_keys.yaml` from `configs/api_keys_example.yaml` before WandB logging. DINOv3 teacher weights are loaded from the local Hugging Face cache first and downloaded automatically when missing; gated model access must be approved before the first run.
+Training and inference require CUDA and xFormers. W&B runs offline by default; set `WANDB_MODE=online` and `WANDB_API_KEY` for online logging. An optional local key file can be copied from `configs/api_keys_example.yaml`; it is ignored by Git.
 
-## Data
+## Data and training assets
 
-Preprocess RealEstate10K-style raw `.torch` files with:
+Replace all `path_to_*` placeholders in the selected config before running:
+
+| Asset | Config field |
+| --- | --- |
+| [RealEstate10K](https://google.github.io/realestate10k/) scene JSON list | `training.dataset_path` |
+| [Objaverse](https://objaverse.allenai.org/) object manifest or scene list | `training.dataset_path` |
+| Objaverse black-background renders and poses | `training.objaverse_root`, `inference.test_objaverse_root` |
+| Depth/camera cache, needed only for geometric supervision | `training.depth_camera_cache_root` |
+| DINOv3 ViT-B/16 weights, needed only for semantic supervision | `model.irepa.weight_path` |
+
+`process_data.py` converts RealEstate10K `.torch` chunks into scene JSON files, RGB images, and train/test lists:
 
 ```bash
-python process_data.py --base_path path_to_raw_re10k/ --output_dir path_to_re10k_processed/ --mode train
+python process_data.py --base_path path_to_raw_re10k --output_dir path_to_re10k --mode train
+python process_data.py --base_path path_to_raw_re10k --output_dir path_to_re10k --mode test
 ```
 
-For RealEstate10K, replace `path_to_re10k_processed/` and `path_to_re10k_da3_cache/` in the configs before launching training or evaluation. For Objaverse, render/preprocess data into the layout referenced by `configs/objaverse_decoder_only.yaml`, then replace `path_to_objaverse_rendered_data/`, `path_to_objaverse_da3_cache/`, and `path_to_objaverse_scene_lists/`.
+Objaverse expects `rendered/<shard>/<object_id>/*.png` with matching world-to-camera `.npy` poses, or the same scene directories directly under the render root. The committed 100-object evaluation list is excluded from training. Rendering and depth/camera cache generation are not included.
 
-Spatial supervision expects a DA3 cache per scene or object under `training.da3_cache_root`:
+The loaders read DA3 depth and camera arrays from the following cache layout, then align cameras and back-project points during training:
 
 ```text
-<da3_cache_root>/<scene_id>/depth.zarr
-<da3_cache_root>/<scene_id>/camera_pose.zarr
-<da3_cache_root>/<scene_id>/camera_intrinsics.zarr
+<cache_root>/<scene_id>/depth.zarr
+<cache_root>/<scene_id>/camera_pose.zarr
+<cache_root>/<scene_id>/camera_intrinsics.zarr
 ```
+
+Objaverse also supports a shard directory before `<scene_id>`. The DINOv3 architecture is loaded through Torch Hub with local weights. For offline use, set `model.irepa.repo=path_to_dinov3_source`. VGG perceptual training uses `metric_checkpoint/imagenet-vgg-verydeep-19.mat`, downloaded on first use if absent. Datasets, teacher assets, keys, and checkpoints are not distributed here.
 
 ## Training
 
-The released experiment families are:
+All four configs default to the full model at 256×256, patch size 8, width 768, and 50K optimizer updates. The decoder-only has 12 layers; the encoder-decoder has 12 encoder and 12 decoder layers.
 
-| Family | Config | Public variants |
-| --- | --- | --- |
-| RealEstate10K decoder-only | `configs/re10k_decoder_only.yaml` | `training.variant=basic` and `training.variant=full` |
-| RealEstate10K encoder-decoder | `configs/re10k_encoder_decoder.yaml` | full design |
-| Objaverse decoder-only | `configs/objaverse_decoder_only.yaml` | full design |
-
-Run the full RealEstate10K decoder-only model with:
+| Dataset | Decoder-only | Encoder-decoder | Paper setting |
+| --- | --- | --- | --- |
+| RealEstate10K | `configs/re10k_decoder_only.yaml` | `configs/re10k_encoder_decoder.yaml` | 4 A100 80GB, batch/GPU 4, 2 input + 6 target views |
+| Objaverse | `configs/objaverse_decoder_only.yaml` | `configs/objaverse_encoder_decoder.yaml` | 8 A100 80GB, batch/GPU 4, 4 input + 8 target views |
 
 ```bash
-bash scripts/train_re10k_decoder_full.sh
+torchrun --standalone --nproc_per_node=4 train.py --config configs/re10k_decoder_only.yaml
+torchrun --standalone --nproc_per_node=8 train.py --config configs/objaverse_encoder_decoder.yaml
 ```
 
-Override layer count and per-GPU batch size directly when launching:
+Choose any config from the table. The four independent switches select the method:
+
+| Variant | `model.transformer.decouple` | `model.transformer.film` | `training.dino` | `training.spatial_supervision` |
+| --- | --- | --- | --- | --- |
+| Entangled LVSM baseline | false | false | false | false |
+| Decouple only | true | false | false | false |
+| Full model (default) | true | true | true | true |
 
 ```bash
-torchrun --nproc_per_node 4 --nnodes 1 \
-  --rdzv_id 18636 --rdzv_backend c10d --rdzv_endpoint localhost:29503 \
-  train.py --config configs/re10k_decoder_only.yaml \
-  training.variant=full \
-  model.transformer.n_layer=12 \
-  training.batch_size_per_gpu=4
+torchrun --standalone --nproc_per_node=4 train.py --config configs/re10k_decoder_only.yaml \
+  model.transformer.film=false training.dino=false training.spatial_supervision=false \
+  training.checkpoint_dir=./experiments/checkpoints/re10k_decouple_only \
+  training.wandb_exp_name=re10k_decouple_only
 ```
 
-Other released training entry points:
+Use a separate checkpoint directory for every variant: training automatically resumes from that directory. FiLM and both auxiliary losses require decoupling. Effective batch is `GPU count × batch_size_per_gpu × grad_accum_steps`. `checkpoint_every: 0` saves only the final checkpoint; set it to a positive forward-step interval for intermediate saves. The old `training.variant` / `model.transformer.variant` interfaces are replaced by the switches above; checkpoints must match the current architecture.
+
+## Camera encodings
+
+Both architectures support `model.camera_encoding.ray_encoding=plucker` (default, `[o × d, d]`) or `raymap` (`[o, d]`). Decoder-only additionally supports `model.camera_encoding.attention_encoding=prope`, applying projective camera transforms around attention; `gta` is its pose-only control. Encoder-decoder scene latents have no per-view camera assignment, so attention-level camera encodings are rejected.
+
+For the paper's Raymap or PRoPE controlled comparisons, disable FiLM and both auxiliary losses, and compare `decouple=false` with `decouple=true` under identical settings:
 
 ```bash
-bash scripts/train_re10k_decoder_basic.sh
-bash scripts/train_re10k_encoder_decoder.sh
-bash scripts/train_objaverse_decoder.sh
+torchrun --standalone --nproc_per_node=4 train.py --config configs/re10k_decoder_only.yaml \
+  model.camera_encoding.ray_encoding=raymap model.transformer.decouple=true \
+  model.transformer.film=false training.dino=false training.spatial_supervision=false \
+  training.checkpoint_dir=./experiments/checkpoints/re10k_raymap_decouple
 ```
 
-## Evaluation
+For PRoPE, use `ray_encoding=plucker` and `attention_encoding=prope`. [BASELINES.md](BASELINES.md) records the manuscript's comparison protocols; external baseline implementations are not included.
 
-Evaluate a RealEstate10K decoder-only checkpoint with:
+## Inference and evaluation
+
+Use the config and switches that match the checkpoint. No teacher or depth cache is needed at inference. RealEstate10K uses the committed fixed-view index (2 input, 3 target views):
 
 ```bash
-bash scripts/eval_re10k_decoder.sh
+torchrun --standalone --nproc_per_node=1 inference.py --config configs/re10k_decoder_only.yaml \
+  inference.if_inference=true inference.compute_metrics=true \
+  training.dataset_path=path_to_re10k/test/eval_list.txt \
+  training.target_has_input=false training.num_input_views=2 \
+  training.num_target_views=3 training.num_views=5 \
+  training.checkpoint_dir=path_to_checkpoint_or_directory \
+  inference_out_dir=./outputs/re10k
 ```
 
-Other released evaluation entry points:
+For Objaverse, select its config, retain 4 input / 8 target views, set `training.target_has_input=false`, and configure `inference.test_objaverse_root`; the committed test list and view index select the held-out objects. Evaluation exports RGB images, PSNR/SSIM/LPIPS, and an HTML browser. Set `inference.render_video=true` for camera-path videos.
+
+## Validation and attribution
 
 ```bash
-bash scripts/eval_re10k_encoder_decoder.sh
-bash scripts/eval_objaverse_decoder.sh
+python tools/smoke_models.py --forward
+python tools/smoke_camera_encodings.py
 ```
 
-Set `training.checkpoint_dir=path_to_checkpoint_or_dir/` and `inference_out_dir=path_to_eval_output/` as command-line overrides when needed. Evaluation writes images, metrics, and optional HTML pages under `inference_out_dir`.
+These use small synthetic inputs to check model construction, CUDA forwards, and camera-encoding gradients; they do not reproduce the paper's training runs. The training-only projector and teacher are omitted from inference.
 
-## BibTeX
+Project-authored code retains the repository's [MIT license](LICENSE.md). See [third-party notices](THIRD_PARTY_NOTICES.md) for LVSM-derived components, PRoPE, and separately obtained models and datasets.
+
+## Citation
 
 ```bibtex
 @misc{wu2026resolvingrepresentationambiguityfeedforward,
-      title={Resolving Representation Ambiguity in Feedforward Novel View Synthesis Transformer via Semantic-Spatial Decoupling},
-      author={Yihang Wu and Yihang Sun and Shaofeng Zhang and Zuxuan Wu and Junchi Yan and Xiaosong Jia and Yu-gang Jiang},
-      year={2026},
-      eprint={2605.18599},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2605.18599},
+  title={Resolving Representation Ambiguity in Feedforward Novel View Synthesis Transformer via Semantic-Spatial Decoupling},
+  author={Yihang Wu and Yihang Sun and Shaofeng Zhang and Zuxuan Wu and Junchi Yan and Xiaosong Jia and Yu-gang Jiang},
+  year={2026},
+  eprint={2605.18599},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV},
+  url={https://arxiv.org/abs/2605.18599}
 }
 ```
