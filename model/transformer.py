@@ -1,3 +1,8 @@
+# Transformer primitives are based on https://github.com/Haian-Jin/LVSM.
+# Upstream terms: LICENSES/LVSM-CC-BY-NC-SA-4.0.md.
+# Independent value streams, branch-wise FFNs, and modulation are extensions.
+# PRoPE/GTA transforms are credited in model/camera_conditioning.py.
+
 import torch
 import torch.nn as nn
 from einops import rearrange

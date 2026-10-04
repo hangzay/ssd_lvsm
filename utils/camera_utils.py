@@ -14,6 +14,10 @@
 
 """
 Camera transformation helper code.
+
+Inherited through LVSM from https://github.com/nerfstudio-project/nerfstudio.
+MultiNeRF adaptations retain their source links below.
+Apache-2.0 license: LICENSES/Apache-2.0.txt.
 """
 
 import math

@@ -1,4 +1,8 @@
 # Copyright (c) 2026 Yihang Wu.
+#
+# Backbone adapted from https://github.com/Haian-Jin/LVSM.
+# Upstream terms: LICENSES/LVSM-CC-BY-NC-SA-4.0.md.
+# This project adds semantic-spatial decoupling, modulation, and supervision.
 
 import logging
 import os

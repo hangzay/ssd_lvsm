@@ -1,7 +1,10 @@
 # Copyright (c) 2026 Yihang Wu.
 #
-# The PRoPE implementation in this file is adapted from
-# https://github.com/liruilong940607/prope (MIT License).
+# PRoPE/GTA attention transforms are adapted from the official PyTorch source:
+# https://github.com/liruilong940607/prope/blob/main/prope/torch.py
+# Copyright (c) Authors of "Cameras as Relative Positional Encoding".
+# Upstream MIT notice: LICENSES/PRoPE-MIT.txt.
+# Ray tokenization and LVSM camera-context integration are local extensions.
 
 """Plucker/raymap tokens and PRoPE relative camera attention."""
 

@@ -1,4 +1,8 @@
-"""Small DINOv3 helpers used by ssLVSM training."""
+"""Small DINOv3 helpers used by ssLVSM training.
+
+Teacher source: https://github.com/facebookresearch/dinov3.
+The teacher is loaded separately; its source and weights retain upstream terms.
+"""
 
 from __future__ import annotations
 
